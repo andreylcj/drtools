@@ -92,7 +92,8 @@ class Log:
         backup_count: int=10,
         name: str='Main',
         default_start: bool=True,
-        full_file_path_log: bool=False 
+        full_file_path_log: bool=False,
+        log_as_print: bool=False
     ) -> None:
         self.full_file_path_log = full_file_path_log
         self.LOGGER = logging.getLogger(name)
@@ -118,6 +119,7 @@ class Log:
         self._filter = CallerFilter()
         self.LOGGER.addFilter(self._filter)
         self.LOGGER.setLevel(logging.DEBUG)
+        self.log_as_print = log_as_print
         self.verbosity = True
         if default_start:
             self.LOGGER.info('!*************** START ***************!')
@@ -148,7 +150,10 @@ class Log:
             The message that will be logged
         """
         if self.verbosity:
-            self.LOGGER.debug(msg)
+            if self.log_as_print:
+                print(msg)
+            else:
+                self.LOGGER.debug(msg)
 
     @caller_reader
     def info(self, msg: any) -> None:
@@ -160,7 +165,10 @@ class Log:
             The message that will be logged
         """
         if self.verbosity:
-            self.LOGGER.info(msg)
+            if self.log_as_print:
+                print(msg)
+            else:
+                self.LOGGER.info(msg)
         
     @caller_reader
     def warning(self, msg: any) -> None:
@@ -172,7 +180,10 @@ class Log:
             The message that will be logged
         """
         if self.verbosity:
-            self.LOGGER.warning(msg)
+            if self.log_as_print:
+                print(msg)
+            else:
+                self.LOGGER.warning(msg)
 
     @caller_reader
     def error(self, msg: any) -> None:
@@ -184,7 +195,10 @@ class Log:
             The message that will be logged
         """
         if self.verbosity:
-            self.LOGGER.error(msg)
+            if self.log_as_print:
+                print(msg)
+            else:
+                self.LOGGER.error(msg)
         
     @caller_reader
     def critical(self, msg: any) -> None:
@@ -196,7 +210,10 @@ class Log:
             The message that will be logged
         """
         if self.verbosity:
-            self.LOGGER.critical(msg)
+            if self.log_as_print:
+                print(msg)
+            else:
+                self.LOGGER.critical(msg)
     
 
 def function_name_start_and_end(
