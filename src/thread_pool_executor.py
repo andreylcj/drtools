@@ -1,0 +1,338 @@
+"""This module was created to handle concurrent executions
+
+"""
+
+import os
+import concurrent
+import concurrent.futures
+import logging
+from logging import Logger
+from datetime import datetime
+from typing import Dict, List
+from types import FunctionType
+from drey_tools.utils import progress, display_time
+from drey_tools.logs import Log
+import numpy as np
+from numpy import inf
+import math
+
+
+WorkerData = any
+"""any: Worker data can be any type of data."""
+
+LambdaResponse = any
+"""any: Lambda Response can be any type of data."""
+
+class Event:
+	"""Lambda event to pass to ``handle_lambda`` function
+
+	Parameters
+	----------
+	parameters : any
+		Parameters to pass to ``execution_function``
+	execution_function : FunctionType
+		The function that will be executed
+	verbose : bool
+		The function that will be executed
+	LOGGER : Log, optional
+		The Logger, by default None
+	
+	"""
+    
+	def __init__(
+		self,
+		parameters: any,
+		execution_function: FunctionType,
+		verbose: bool=True,
+  		LOGGER: Log=None
+	) -> None:
+		self.parameters = parameters
+		self.execution_function = execution_function
+		self.verbose = verbose
+		self.LOGGER = logging if LOGGER is None else LOGGER
+        
+
+def handle_lambda(event: Event) -> LambdaResponse:
+	"""Execute a function passing parameters with error handling
+
+	Parameters
+	----------
+	event : Event
+		The Lambda Event
+
+	Returns
+	-------
+	LambdaResponse
+		Lambda Response
+	"""
+	init = datetime.now()
+	parameters = event.parameters
+	execution_function = event.execution_function
+	logger = event.LOGGER
+	if event.verbose:
+		logger.debug(f'Start execution with parameters: {parameters}')
+	function_response = None
+	try:
+		function_response = execution_function(
+      		Event(
+				parameters=parameters,
+				execution_function=None,
+				LOGGER=logger,
+			)
+		)
+		if event.verbose:
+			logger.debug(f'Succesful execution!')
+			logger.debug(f'Lambda execution response:')
+			response_str = str(function_response)
+			log_text = f'{response_str[:100]}'
+			if len(response_str) > 100:
+				log_text += f' <|:::|> {response_str[-min(len(response_str) - 100, 100):]}'
+			logger.debug(log_text)
+				
+	except Exception as exc: 
+		logger.error(f'Execution with parameters: {parameters} generate an exception: {exc}')
+	timeDiff = (datetime.now() - init).total_seconds()
+	if event.verbose:
+		logger.debug(f"Execution ends in {timeDiff}s.")
+	return function_response
+
+
+class ThreadPoolExecutor:
+	"""Execute function in parallel threads
+
+	Parameters
+	----------
+	execution_function : FunctionType
+		Function to be executed in concurrents
+	worker_data : List[WorkerData]
+		The input to be passed for each concurrent
+		execution
+	max_workers : int, optional
+		Max number of parallel threads, by default 5
+	worker_id_pattern : FunctionType, optional
+		Function to be applied in order to uniquely
+		identify a worker, by default lambdax:x
+	LOGGER : Log, optional
+		The Logger, by default None
+	verbose_percentage : float, optional
+		The percentage of workers that will
+  		be logged, by default 0.1
+	stop_count : int, optional
+		Stop if number of processed works reach 
+		this level, after that, reset counts and start 
+		couting again, by default inf.
+	stop_computation : FunctionType, optional
+		Function to be executed when stop thread pool execution, 
+  		by default None.
+	del_response_when_stop : bool, optional
+		If True, the current response will be deleted after 
+  		stop computation executes. If False, the response will 
+    	be cumulative till the end, by default False.
+
+	Example
+	--------
+	Usage example:
+
+	>>> thread_pool_executor = ThreadPoolExecutor(...)
+	>>> thread_pool_executor.start()
+	>>> thread_pool_executor.get_result()
+	<The execution response>
+	"""
+
+	def __init__(
+		self, 
+		execution_function: FunctionType, 
+		worker_data: List[WorkerData], 
+		max_workers: int=5, 
+		worker_id_pattern: FunctionType=lambda worker: worker,
+  		LOGGER: Log=None,
+		verbose_percentage: float=0.1,
+		stop_count: int=inf, 
+		stop_computation: FunctionType=None,
+  		del_response_when_stop: bool=False
+	) -> None:
+		self.execution_function = execution_function 
+		self.worker_data = worker_data 
+		self.max_workers = max_workers 
+		self.worker_id_pattern = worker_id_pattern 
+		self.LOGGER = logging if LOGGER is None else LOGGER
+		self.verbose_percentage = verbose_percentage
+		self.stop_count = stop_count
+		self.stop_computation = stop_computation
+		self.del_response_when_stop = del_response_when_stop
+
+	def start(
+		self
+	) -> None:
+		"""Start Thread Pool Execution.
+		"""
+  
+		self.started_at = datetime.now()
+		self.updated_at = datetime.now()
+		self._progress_workers = []
+		self._progress_time = []
+  
+		if len(self.worker_data) == 0:
+			self.LOGGER.info('No data to process...')
+			self.result = None
+			return None	
+  
+		self.LOGGER.info('Starting Thread Pool Execution...')  
+		thread_executor_response = self._thread_pool_executor(
+			self.execution_function, 
+			self.worker_data, 
+			self.worker_id_pattern,
+			self.max_workers,
+		)  
+		self.LOGGER.info('Thread Pool Execution Finished.')  
+		self.result = thread_executor_response
+
+	def _thread_pool_executor(
+		self,
+		execution_function, 
+		worker_data: List[WorkerData], 
+		worker_id_pattern: FunctionType,
+		max_workers: int=5,
+	) -> List[LambdaResponse]:
+     
+		# define verbose items
+		worker_data_len = len(worker_data)
+		verbose_items = np.arange(worker_data_len)
+		num_elems = math.ceil(len(verbose_items) * self.verbose_percentage)
+		verbose_index = np.round(np.linspace(0, worker_data_len - 1, num_elems)).astype(int)
+		verbose_index = verbose_index[1:] if len(verbose_index) > 1 else verbose_index
+		verbose_index = verbose_index if verbose_index[-1] == worker_data_len - 1 \
+			else verbose_index + [worker_data_len - 1]
+  
+		response = []
+		worker_data_pack = []
+		temp_data = []
+		curr_count = 0
+
+		for idx, worker in enumerate(worker_data):
+			if idx > 0 and idx % self.stop_count == 0:
+				worker_data_pack.append(temp_data)
+				temp_data = []
+			temp_data.append(worker)
+		worker_data_pack.append(temp_data)
+		del temp_data
+
+       
+		for idx_0, sub_worker_data in enumerate(worker_data_pack):
+			curr_response = []
+			with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+				futures = {
+					executor.submit(
+						self._track_progress, 
+						{
+							'event': Event(
+								parameters=row, 
+								execution_function=execution_function,
+								verbose=((curr_count + idx) in verbose_index),
+								LOGGER=self.LOGGER,
+							),
+							'current': curr_count + idx + 1,
+							'total': worker_data_len
+						}
+					): worker_id_pattern(row) 
+					for idx, row in enumerate(sub_worker_data)
+				}
+				for future in concurrent.futures.as_completed(futures):
+					identifier_str = futures[future]
+					try:
+						data = future.result()
+						curr_response.append(data)
+					except Exception as exc:
+						self.LOGGER.error(f'{identifier_str} generated an exception: {exc}')
+      
+			curr_count = curr_count + len(sub_worker_data)
+   
+			if self.stop_computation is not None:
+				stop_progress_text = f'({idx_0 + 1}/{len(worker_data_pack)})'
+				self.LOGGER.debug(f'Stop computation execution {stop_progress_text}...')
+				self.stop_computation(curr_response)
+				self.LOGGER.debug(f'Stop computation execution {stop_progress_text}... Done')
+				self.LOGGER.debug(f'Complete execution of {curr_count} from {worker_data_len} workers')    
+				if self.del_response_when_stop:
+					response = []
+    
+			response = response + curr_response
+    
+		return response
+
+	def _track_progress(
+     	self,	
+		data: Dict
+	) -> any:
+
+		event = data.get('event')
+		lambda_response = handle_lambda(event)
+		current = data.get('current')
+		total = data.get('total')
+		progress_percentage = progress(
+			current=current, 
+			total=total,
+		)
+  
+		if event.verbose:
+			self.LOGGER.debug(
+				f'{progress_percentage}% ({current:,}/{total:,}) complete.'
+			)
+
+			curr_diff_time = (datetime.now() - self.updated_at).seconds
+			curr_diff_time = curr_diff_time + (datetime.now() - self.updated_at).microseconds / 1e6
+			self._progress_time.append(curr_diff_time)
+   
+			if len(self._progress_workers) == 0:
+				self._progress_workers.append(current)
+				self._progress_workers.append(current)
+				progress_curr = current
+			else:
+				progress_curr = current - self._progress_workers[-1]
+				self._progress_workers[-1] = progress_curr
+				self._progress_workers.append(current)
+    
+			self._progress_workers = self._progress_workers[-6:]
+			self._progress_time = self._progress_time[-5:]
+
+			seconds_by_worker = np.array([
+       			execution_time / num_of_workers 
+          		for num_of_workers, execution_time in zip(self._progress_workers, self._progress_time)
+            ])
+   
+			seconds_by_worker = seconds_by_worker.mean()
+
+			expected_remaining_seconds = math.ceil((total - current) * seconds_by_worker)
+			expected_remaining_seconds = expected_remaining_seconds + 1
+   
+			self.LOGGER.debug(
+				f'Expected remaining time: {display_time(expected_remaining_seconds)}'
+			)
+   
+			self.updated_at = datetime.now()
+   
+		return lambda_response
+
+	def get_worker_data(
+		self
+	) -> WorkerData:
+		"""Get worker data
+
+		Returns
+		-------
+		WorkerData
+			The defined worker data
+		"""
+		return self.worker_data
+
+	def get_result(
+		self
+	) -> any:
+		"""Get result of all concurrent executions
+
+		Returns
+		-------
+		any
+			The result of all concurrent executions.
+		"""
+		return self.result
