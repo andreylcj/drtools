@@ -965,7 +965,7 @@ class Model:
             self.LOGGER.debug(f'({count:,}/{categorical_features_len:,}) Filtering {feature["name"]}...')
             self.LOGGER.debug(f'Conditions: {feature["conditions"]}')            
             
-            from_shape = df.shape            
+            from_shape = df.shape
             df = filter_categorical(df, feature["name"], feature["conditions"])                
             to_shape = df.shape
                 
