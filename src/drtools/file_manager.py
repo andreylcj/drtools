@@ -96,7 +96,7 @@ def get_files_path(
     content_arr : List[str], optional
         Array of content of parent path directory, by default []
     ignore_files : List[str], optional
-        Ignore files if name equal some of this list, by default []
+        Ignore files if name equal some of this list, by default [] 
     ignore_folders : List[str], optional
         Ignore folders if name equal some of this list, by default []
     ignore_if_contain_some_of_the_words : List[str], optional
