@@ -5,9 +5,9 @@ which will be mostly used in EDA.
 """
 
 
-import drey_tools.utils as Utils
-from drey_tools.file_manager import create_directories_of_path
-import drey_tools.data_science.data_handle as DataHandle
+import drtools.utils as Utils
+from drtools.file_manager import create_directories_of_path
+import drtools.data_science.data_handle as DataHandle
 from types import FunctionType
 from typing import Dict, List, Tuple, Union
 import pandas as pd
