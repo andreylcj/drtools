@@ -1,7 +1,7 @@
 """ 
 This module was created to archive useful 
 functions which can be used 
-in drey_tools.data_science.database 
+in drtools.data_science.database 
 package.
 
 """

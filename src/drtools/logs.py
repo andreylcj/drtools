@@ -7,7 +7,7 @@ of any .py or .ipynb file
 import logging
 from types import FunctionType
 from typing import Any, Union
-import drey_tools.file_manager as FileManager
+import drtools.file_manager as FileManager
 from functools import wraps
 import logging
 from logging.handlers import RotatingFileHandler

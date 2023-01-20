@@ -10,8 +10,8 @@ from logging import Logger
 from datetime import datetime
 from typing import Dict, List
 from types import FunctionType
-from drey_tools.utils import progress, display_time
-from drey_tools.logs import Log
+from drtools.utils import progress, display_time
+from drtools.logs import Log
 import numpy as np
 from numpy import inf
 import math

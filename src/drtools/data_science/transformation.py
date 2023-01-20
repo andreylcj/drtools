@@ -8,7 +8,7 @@ DataFrame.
 
 from abc import ABC, abstractmethod
 from pandas.core.frame import DataFrame
-from drey_tools.logs import Log
+from drtools.logs import Log
 import logging
 
 

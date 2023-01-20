@@ -5,12 +5,12 @@ This module was created to handle time series stuff.
 
 
 from typing import List, Union
-import drey_tools.utils as Utils
+import drtools.utils as Utils
 from pandas.core.frame import DataFrame
 import pandas as pd
 import math
 import numpy as np
-from drey_tools.logs import Log
+from drtools.logs import Log
 
 
 OneDimension = int
