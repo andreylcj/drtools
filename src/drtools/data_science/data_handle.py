@@ -5,7 +5,7 @@ pandas DataFrame or pandas Series.
 """
 
 
-import drey_tools.utils as Utils
+import drtools.utils as Utils
 from typing import List, Union, Tuple
 from pandas import DataFrame, Series, cut
 from scipy import stats

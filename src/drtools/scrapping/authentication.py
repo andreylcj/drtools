@@ -6,7 +6,7 @@ default authentication.
 
 
 from selenium.webdriver.common.by import By
-from drey_tools.scrapping.interaction import click
+from drtools.scrapping.interaction import click
 from selenium.webdriver.chrome.webdriver import WebDriver
 
 

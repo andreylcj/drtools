@@ -11,22 +11,22 @@ import os
 import numpy as np
 from datetime import datetime
 import logging
-from drey_tools.utils import ValueRestrictions, ValueRestrictionsAsJson
-from drey_tools.file_manager import (
+from drtools.utils import ValueRestrictions, ValueRestrictionsAsJson
+from drtools.file_manager import (
     create_directories_of_path, rm_file, 
     list_path_of_all_files_inside_directory
 )
-import drey_tools.data_science.data_handle as DataHandle
-import drey_tools.utils as Utils
+import drtools.data_science.data_handle as DataHandle
+import drtools.utils as Utils
 from typing import List, Union, Optional, Dict, TypedDict, Any
 from types import FunctionType
-from drey_tools.logs import Log
-from drey_tools.utils import list_ops
+from drtools.logs import Log
+from drtools.utils import list_ops
 from pathlib import Path
 from pydbml import PyDBML
 from abc import ABC
 import ast
-from drey_tools.data_science.data_load import read_dir_as_df, read_as_df
+from drtools.data_science.data_load import read_dir_as_df, read_as_df
 
 
 Input = 'input'

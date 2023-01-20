@@ -5,7 +5,7 @@ For instance: .csv, .txt, .parquet, .gz and so on.
 """
 
 
-from drey_tools.file_manager import (
+from drtools.file_manager import (
     create_directories_of_path, search_by_name_on_directory,
     list_path_of_all_files_inside_directory
 )

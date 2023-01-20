@@ -10,8 +10,8 @@ from configparser import ConfigParser
 from typing import List, Tuple, Union
 import psycopg2
 import gzip
-from drey_tools.file_manager import path_exist, create_directories_of_path
-from drey_tools.logs import Log
+from drtools.file_manager import path_exist, create_directories_of_path
+from drtools.logs import Log
 import logging
 
 
