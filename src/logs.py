@@ -12,6 +12,7 @@ from functools import wraps
 import logging
 from logging.handlers import RotatingFileHandler
 from inspect import getframeinfo, stack
+from datetime import datetime
 
 
 class CallerFilter(logging.Filter):
@@ -87,7 +88,7 @@ class Log:
 
     def __init__(
         self,
-        path: str,
+        path: str=None,
         max_bytes: int=2 * 1024 * 1024,
         backup_count: int=10,
         name: str='Main',
@@ -96,31 +97,39 @@ class Log:
         log_as_print: bool=False
     ) -> None:
         self.full_file_path_log = full_file_path_log
-        self.LOGGER = logging.getLogger(name)
-        if self.LOGGER.hasHandlers():
-            self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs
-            
-        FileManager.create_directories_of_path(path)
-        logFile = RotatingFileHandler(
-            path, 
-            mode='a', 
-            maxBytes=max_bytes,
-            backupCount=backup_count, 
-            encoding=None, 
-            delay=0
-        )
-        formatter = logging.Formatter(
-            '[%(threadName)-14s] [%(file)-20s] [%(asctime)s.%(msecs)03d] [%(name)-12s] [%(levelname)8s] %(message)s', 
-            datefmt='%d-%m-%Y %H:%M:%S'
-        )
-        logFile.setFormatter(formatter)
-        self.LOGGER.addHandler(logFile)
-        # Here we add the Filter, think of it as a context
-        self._filter = CallerFilter()
-        self.LOGGER.addFilter(self._filter)
-        self.LOGGER.setLevel(logging.DEBUG)
         self.log_as_print = log_as_print
+        
+        if self.log_as_print:
+            pass
+        elif path is not None:
+            self.LOGGER = logging.getLogger(name)
+            if self.LOGGER.hasHandlers():
+                self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs
+                
+            FileManager.create_directories_of_path(path)
+            logFile = RotatingFileHandler(
+                path, 
+                mode='a', 
+                maxBytes=max_bytes,
+                backupCount=backup_count, 
+                encoding=None, 
+                delay=0
+            )
+            formatter = logging.Formatter(
+                '[%(threadName)-14s] [%(file)-20s] [%(asctime)s.%(msecs)03d] [%(name)-12s] [%(levelname)8s] %(message)s', 
+                datefmt='%d-%m-%Y %H:%M:%S'
+            )
+            logFile.setFormatter(formatter)
+            self.LOGGER.addHandler(logFile)
+            # Here we add the Filter, think of it as a context
+            self._filter = CallerFilter()
+            self.LOGGER.addFilter(self._filter)
+            self.LOGGER.setLevel(logging.DEBUG)        
+        else:
+            raise Exception('Parameter "path" must be provide or "log_as_print" must be True.')
+            
         self.verbosity = True
+        
         if default_start:
             self.LOGGER.info('!*************** START ***************!')
 
@@ -151,7 +160,7 @@ class Log:
         """
         if self.verbosity:
             if self.log_as_print:
-                print(msg)
+                print(f'[{datetime.now().isoformat()}] [    DEBUG] {msg}')
             else:
                 self.LOGGER.debug(msg)
 
@@ -166,7 +175,7 @@ class Log:
         """
         if self.verbosity:
             if self.log_as_print:
-                print(msg)
+                print(f'[{datetime.now().isoformat()}] [     INFO] {msg}')
             else:
                 self.LOGGER.info(msg)
         
@@ -181,7 +190,7 @@ class Log:
         """
         if self.verbosity:
             if self.log_as_print:
-                print(msg)
+                print(f'[{datetime.now().isoformat()}] [  WARNING] {msg}')
             else:
                 self.LOGGER.warning(msg)
 
@@ -196,7 +205,7 @@ class Log:
         """
         if self.verbosity:
             if self.log_as_print:
-                print(msg)
+                print(f'[{datetime.now().isoformat()}] [    ERROR] {msg}')
             else:
                 self.LOGGER.error(msg)
         
@@ -211,7 +220,7 @@ class Log:
         """
         if self.verbosity:
             if self.log_as_print:
-                print(msg)
+                print(f'[{datetime.now().isoformat()}] [ CRITICAL] {msg}')
             else:
                 self.LOGGER.critical(msg)
     

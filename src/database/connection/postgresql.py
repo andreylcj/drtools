@@ -256,6 +256,26 @@ class Database:
         size: int=10,
         save_on: str=None,
     ) -> Tuple[List[str], List[Tuple]]:
+        """Execute received query.
+
+        Parameters
+        ----------
+        query : str
+            Text query.
+        query_values : Tuple, optional
+            Query values, by default None
+        fetch_mode : Union[FetchAll, FetchOne, FetchMany], optional
+            Fetch mode, by default FetchAll
+        size : int, optional
+            Fetch size, by default 10
+        save_on : str, optional
+            Path to save response, by default None
+
+        Returns
+        -------
+        Tuple[List[str], List[Tuple]]
+            Returns the Header and the Body data.
+        """
         self._connection = None
         cursor = None
         try:
