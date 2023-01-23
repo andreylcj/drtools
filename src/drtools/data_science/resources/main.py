@@ -1132,7 +1132,7 @@ class Database(ABC):
         self.LOGGER = logging if LOGGER is None else LOGGER
         
     def get_col_names(self) -> List[str]:
-        """Get daatabase column names
+        """Get database column names.
 
         Returns
         -------
@@ -1140,6 +1140,20 @@ class Database(ABC):
             List containing database column names.
         """
         return self.col_names
+    
+    def get_manual_col_names(self) -> List[str]:
+        """Get database manual column names.
+
+        Returns
+        -------
+        List[str]
+            List containing database column names.
+        """
+        resp = list_ops(
+            self.col_names,
+            ['id', 'created_at', 'updated_at']
+        )
+        return self.col_names        
     
     def db_name(self) -> str:
         """Get name of database
