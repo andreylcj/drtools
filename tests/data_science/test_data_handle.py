@@ -1,11 +1,10 @@
-# import os
-# import sys
-# sys.path.append(os.path.abspath('../..'))
+
+
 import unittest
 from numpy import inf
 import numpy as np
 import pandas as pd
-from data_science.test_data_handle import (
+from drtools.data_science.test_data_handle import (
     get_labels_from_bin_interval,
     binning_numerical_variable,
     prepare_bins

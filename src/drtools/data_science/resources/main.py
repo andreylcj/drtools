@@ -27,6 +27,7 @@ from pydbml import PyDBML
 from abc import ABC
 import ast
 from drtools.data_science.data_load import read_dir_as_df, read_as_df
+import joblib
 
 
 Input = 'input'
@@ -1416,6 +1417,65 @@ class Database(ABC):
         self.LOGGER.info(f'Inserting data on {self.db_name()}... Done!')
         
         return sorted(inserted_ids)
+    
+    def insert_if_not_exists(
+        self,
+        dataframe: DataFrame
+    ) -> List[int]:
+        """Insert data on db only if not exists. Handle data before insert. Typeraze and 
+        get only columns that must be exist on db.
+
+        Parameters
+        ----------
+        dataframe : DataFrame
+            The data in DataFrame format to be inserted
+
+        Returns
+        -------
+        List[int]
+            The inserted ids.
+        """
+        
+        
+        df = dataframe.copy()
+        
+        if df.shape[0] == 0:
+            return []        
+        
+        self.LOGGER.info(f'Filtering already inserted...')
+        original_shape = df.shape
+        necessary_cols = list_ops(
+            self.get_col_names(),
+            ['id', 'created_at', 'updated_at']
+        )
+        df = df.loc[:, necessary_cols]
+        df['md5_of_row'] = df.apply(lambda x: joblib.hash(x.values), axis=1)
+        intersection_data = self.load_db_as_df(
+            chunksize=400 * 10**3,
+            process_chunk=lambda chunk_df: chunk_df[
+                chunk_df.apply(
+                    lambda x: joblib.hash(x.values), axis=1
+                ).isin(df.md5_of_row.values)
+            ]
+        )
+        intersection_data['md5_of_row'] = intersection_data.apply(
+            lambda x: joblib.hash(x.values), axis=1
+        )
+        df = df[~df.md5_of_row.isin(intersection_data.md5_of_row.values)]
+        df = df.drop('md5_of_row', axis=1)
+        del intersection_data
+        final_shape = df.shape
+        self.LOGGER.info(f'{(original_shape[0] - final_shape[0]):,} rows was already inserted.')
+        self.LOGGER.info(f'{final_shape[0]:,} rows to insert.')
+        self.LOGGER.info(f'Filtering already inserted... Done!')
+        
+        # return df
+        
+        inserted_ids = self.insert(
+            dataframe=df
+        )
+        
+        return inserted_ids
         
     @start_end_log('delete_by_id')
     def delete_by_id(

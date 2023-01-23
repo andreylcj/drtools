@@ -1,8 +1,7 @@
-# import os
-# import sys
-# sys.path.append(os.path.abspath('..'))
+
+
 import unittest
-from utils import (
+from drtools.utils import (
     flatten, 
     re_flatten, 
     progress
