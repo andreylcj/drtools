@@ -155,7 +155,10 @@ class ThreadPoolExecutor:
 		self.worker_data = worker_data 
 		self.max_workers = max_workers 
 		self.worker_id_pattern = worker_id_pattern 
-		self.LOGGER = logging if LOGGER is None else LOGGER
+		if LOGGER is not None:
+			self.LOGGER = LOGGER
+		else:
+			self.LOGGER = Log(log_as_print=True)
 		self.verbose_percentage = verbose_percentage
 		self.stop_count = stop_count
 		self.stop_computation = stop_computation
@@ -167,6 +170,7 @@ class ThreadPoolExecutor:
 		"""Start Thread Pool Execution.
 		"""
   
+		self.num_of_processed_workers = 0  
 		self.started_at = datetime.now()
 		self.updated_at = datetime.now()
 		self._progress_workers = []
@@ -228,7 +232,7 @@ class ThreadPoolExecutor:
 							'event': Event(
 								parameters=row, 
 								execution_function=execution_function,
-								verbose=((curr_count + idx) in verbose_index),
+								verbose=(curr_count + idx) in verbose_index,
 								LOGGER=self.LOGGER,
 							),
 							'current': curr_count + idx + 1,
@@ -273,6 +277,9 @@ class ThreadPoolExecutor:
 			current=current, 
 			total=total,
 		)
+  
+		self.num_of_processed_workers = self.num_of_processed_workers + 1
+		current = self.num_of_processed_workers  
   
 		if event.verbose:
 			self.LOGGER.debug(

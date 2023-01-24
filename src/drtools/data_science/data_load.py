@@ -99,9 +99,9 @@ def read_as_df(
         )
         
     elif '.parquet' in file_path:
-        chuncksize = read_args.get('chunksize', None)
+        chunksize = read_args.get('chunksize', None)
         nrows = read_args.get('nrows', None)
-        if chuncksize is not None:
+        if chunksize is not None:
             return pq.ParquetFile(file_path)
         elif nrows is not None:
             resp = pq.ParquetFile(file_path)
@@ -147,7 +147,7 @@ def read_dir_as_df(
     directory_path : str
         Path of directory.
     process_chunk : FunctionType
-        If chuncksize if passed as parameter, process each 
+        If chunksize if passed as parameter, process each 
         chunck applying this function. This function must return 
         a DataFrame, by default None.
 
@@ -169,16 +169,16 @@ def read_dir_as_df(
             continue
         
         temp_data = None
-        chuncksize = read_args.get('chunksize', None)
+        chunksize = read_args.get('chunksize', None)
         nrows = read_args.get('nrows', None)
         
         if nrows is not None \
-        and chuncksize is not None:
-            raise Exception('Parameter "chuncksize" and "nrows" can not be provided at same time.')
+        and chunksize is not None:
+            raise Exception('Parameter "chunksize" and "nrows" can not be provided at same time.')
         
-        if chuncksize is not None:
+        if chunksize is not None:
             if '.parquet' in item:
-                for chunk in resp.iter_batches(batch_size=chuncksize):
+                for chunk in resp.iter_batches(batch_size=chunksize):
                     chunk = chunk.to_pandas()
                     if temp_data is None:
                         temp_data = process_chunk(chunk)

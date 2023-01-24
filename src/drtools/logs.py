@@ -37,7 +37,8 @@ def caller_reader(f):
             if self.full_file_path_log \
             else last_name
         line_n = caller.lineno
-        self._filter.file = f'{file}:{line_n}'
+        if not self.log_as_print:
+            self._filter.file = f'{file}:{line_n}'
         return f(self, *args)
     wrapper.__doc__ = f.__doc__
     return wrapper
