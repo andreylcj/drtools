@@ -32,8 +32,11 @@ class Event:
 		Parameters to pass to ``execution_function``
 	execution_function : FunctionType
 		The function that will be executed
-	verbose : bool
-		The function that will be executed
+	verbose : bool, optional
+		If lambda execution will have logs, by default True.
+	direct : bool, optional
+		If True, pass parameters direct to execution function 
+  		as arguments, by default False.
 	LOGGER : Log, optional
 		The Logger, by default None
 	
@@ -44,11 +47,13 @@ class Event:
 		parameters: any,
 		execution_function: FunctionType,
 		verbose: bool=True,
+		direct: bool=False,
   		LOGGER: Log=None
 	) -> None:
 		self.parameters = parameters
 		self.execution_function = execution_function
 		self.verbose = verbose
+		self.direct = direct
 		self.LOGGER = logging if LOGGER is None else LOGGER
         
 
@@ -73,13 +78,9 @@ def handle_lambda(event: Event) -> LambdaResponse:
 		logger.debug(f'Start execution with parameters: {parameters}')
 	function_response = None
 	try:
-		function_response = execution_function(
-      		Event(
-				parameters=parameters,
-				execution_function=None,
-				LOGGER=logger,
-			)
-		)
+		function_parameters = parameters if event.direct \
+      		else Event(parameters=parameters, execution_function=None, LOGGER=logger)
+		function_response = execution_function(function_parameters)
 		if event.verbose:
 			logger.debug(f'Succesful execution!')
 			logger.debug(f'Lambda execution response:')
@@ -128,6 +129,9 @@ class ThreadPoolExecutor:
 		If True, the current response will be deleted after 
   		stop computation executes. If False, the response will 
     	be cumulative till the end, by default False.
+	direct : bool, optional
+		If True, pass parameters direct to execution function 
+  		as arguments, by default False.
 
 	Example
 	--------
@@ -149,7 +153,8 @@ class ThreadPoolExecutor:
 		verbose_percentage: float=0.1,
 		stop_count: int=inf, 
 		stop_computation: FunctionType=None,
-  		del_response_when_stop: bool=False
+  		del_response_when_stop: bool=False,
+		direct: bool=False
 	) -> None:
 		self.execution_function = execution_function 
 		self.worker_data = worker_data 
@@ -163,6 +168,7 @@ class ThreadPoolExecutor:
 		self.stop_count = stop_count
 		self.stop_computation = stop_computation
 		self.del_response_when_stop = del_response_when_stop
+		self.direct = direct
 
 	def start(
 		self
@@ -233,6 +239,7 @@ class ThreadPoolExecutor:
 								parameters=row, 
 								execution_function=execution_function,
 								verbose=(curr_count + idx) in verbose_index,
+        						direct=self.direct,
 								LOGGER=self.LOGGER,
 							),
 							'current': curr_count + idx + 1,
@@ -271,15 +278,12 @@ class ThreadPoolExecutor:
 
 		event = data.get('event')
 		lambda_response = handle_lambda(event)
-		current = data.get('current')
+		# current = data.get('current')
 		total = data.get('total')
-		progress_percentage = progress(
-			current=current, 
-			total=total,
-		)
   
 		self.num_of_processed_workers = self.num_of_processed_workers + 1
 		current = self.num_of_processed_workers  
+		progress_percentage = progress(current=current, total=total)
   
 		if event.verbose:
 			self.LOGGER.debug(

@@ -244,7 +244,7 @@ def create_directories_of_path(
         temp_path = Utils.join_path(temp_path, env_path)
         if not os.path.exists(temp_path): 
             try:
-                os.mkdir(temp_path)
+                os.makedirs(temp_path, exist_ok=True)
             except Exception as e:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(e).__name__, e.args)

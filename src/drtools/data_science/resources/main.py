@@ -1153,7 +1153,7 @@ class Database(ABC):
             self.col_names,
             ['id', 'created_at', 'updated_at']
         )
-        return self.col_names        
+        return resp      
     
     def db_name(self) -> str:
         """Get name of database
@@ -1628,6 +1628,21 @@ class Database(ABC):
             
                     
         return sorted(updated_ids)
+    
+    def get_by_id(
+        self,
+        id: int,
+        as_dataframe: bool=True
+    ):
+        df = self.load_db_as_df(
+            chunksize=400 * 10**3,
+            process_chunk=lambda chunk: chunk[chunk.id == id]
+        )
+        if as_dataframe:
+            return df
+        else:
+            single = df.to_dict(orient='records')
+            return single[0]
     
 
 class ModelCatalogueWhen(TypedDict):
