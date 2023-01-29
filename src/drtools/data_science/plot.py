@@ -5,9 +5,9 @@ which will be mostly used in EDA.
 """
 
 
-import drtools.utils as Utils
+from drtools.utils import list_ops, to_title
 from drtools.file_manager import create_directories_of_path
-import drtools.data_science.data_handle as DataHandle
+from drtools.data_science.data_handle import prepare_bins, binning_numerical_variable
 from types import FunctionType
 from typing import Dict, List, Tuple, Union
 import pandas as pd
@@ -339,7 +339,7 @@ def bar(
     )
     df = df.fillna(fillna)
     
-    work_columns = Utils.list_difference(df.columns, ignore_columns + [margins_name])
+    work_columns = list_ops(df.columns, ignore_columns + [margins_name])
 
     fig, ax1 = plt.subplots(figsize=figsize)
 
@@ -379,7 +379,7 @@ def bar(
 
     if hue != '__temp_fill__':
         legend.title = hue
-        legend.labels = [Utils.to_title(str(col)) for col in work_columns]
+        legend.labels = [to_title(str(col)) for col in work_columns]
         legend.prepare(ax1)
         
     # Twin Axes
@@ -568,7 +568,7 @@ def hist(
         .sort_values() \
         .values
     bins_interval, points, labels \
-        = DataHandle.prepare_bins(
+        = prepare_bins(
         bins,
         smallest_value=lower_boundary if lower_boundary != -inf else sorted_values[0], 
         bigger_value=upper_boundary if upper_boundary != inf else sorted_values[-1],
@@ -639,7 +639,7 @@ def hist(
     def plot_twinx(twinx_obj: Twinx, subplot):
         if twinx_obj.active:
             
-            temp_df = DataHandle.binning_numerical_variable(
+            temp_df = binning_numerical_variable(
                 df,
                 analysis_variable,
                 bins=bins_interval,
