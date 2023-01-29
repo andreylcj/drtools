@@ -4,15 +4,18 @@ of any .py or .ipynb file
 
 """
 
+
+import sys
 import logging
 from types import FunctionType
-from typing import Any, Union
-import drtools.file_manager as FileManager
+from typing import Any, Union, TypedDict
+from drtools.file_manager import (
+    split_path, create_directories_of_path
+)
 from functools import wraps
 import logging
 from logging.handlers import RotatingFileHandler
 from inspect import getframeinfo, stack
-from datetime import datetime
 
 
 class CallerFilter(logging.Filter):
@@ -30,18 +33,25 @@ def caller_reader(f):
     """This wrapper updates the context with the callor infos"""
     def wrapper(self, *args):
         caller = getframeinfo(stack()[1][0])
-        last_name = FileManager.split_path(
+        last_name = split_path(
             caller.filename
         )[-1]
         file = caller.filename \
             if self.full_file_path_log \
             else last_name
         line_n = caller.lineno
-        if not self.log_as_print:
-            self._filter.file = f'{file}:{line_n}'
+        self._filter.file = f'{file}:{line_n}'
         return f(self, *args)
     wrapper.__doc__ = f.__doc__
     return wrapper
+
+
+class FormatterOptions(TypedDict):
+    IncludeThreadName: bool
+    IncludeFileName: bool
+    IncludeDate: bool
+    IncludeLoggerName: bool
+    IncludeLevelName: bool
 
 
 class Log:
@@ -89,50 +99,74 @@ class Log:
 
     def __init__(
         self,
-        path: str=None,
+        path: Union[str, None]=None,
         max_bytes: int=2 * 1024 * 1024,
         backup_count: int=10,
         name: str='Main',
         default_start: bool=True,
         full_file_path_log: bool=False,
+        log_level: str='DEBUG',
+        formatter_options: FormatterOptions=FormatterOptions({
+            'IncludeThreadName': True,
+            'IncludeFileName': True,
+            'IncludeDate': True,
+            'IncludeLoggerName': True,
+            'IncludeLevelName': True,
+        }),
+        # deprecated
         log_as_print: bool=False
     ) -> None:
+        self.path = path
+        self.max_bytes = max_bytes
+        self.backup_count = backup_count
+        self.name = name
+        self.default_start = default_start
         self.full_file_path_log = full_file_path_log
-        self.log_as_print = log_as_print
-        
-        if self.log_as_print:
-            pass
-        elif path is not None:
-            self.LOGGER = logging.getLogger(name)
-            if self.LOGGER.hasHandlers():
-                self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs
-                
-            FileManager.create_directories_of_path(path)
-            logFile = RotatingFileHandler(
-                path, 
+        self.log_level = log_level
+        self.formatter_options = formatter_options
+        self.log_level = {'DEBUG': 10, 'INFO': 20, 'WARNING': 30, 'ERROR': 40, 'CRITICAL': 50}[self.log_level]        
+        self.original_verbosity = self.log_level
+        self._construct_logger()
+        if default_start:
+            self.info('!*************** START ***************!')
+
+    def _construct_logger(
+        self,
+    ):
+        self.LOGGER = logging.getLogger(self.name)
+        if self.LOGGER.hasHandlers():
+            self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs        
+        if self.path is not None:
+            create_directories_of_path(self.path)
+            log_handler = RotatingFileHandler(
+                self.path, 
                 mode='a', 
-                maxBytes=max_bytes,
-                backupCount=backup_count, 
+                maxBytes=self.max_bytes,
+                backupCount=self.backup_count, 
                 encoding=None, 
                 delay=0
             )
-            formatter = logging.Formatter(
-                '[%(threadName)-14s] [%(file)-20s] [%(asctime)s.%(msecs)03d] [%(name)-12s] [%(levelname)8s] %(message)s', 
-                datefmt='%d-%m-%Y %H:%M:%S'
-            )
-            logFile.setFormatter(formatter)
-            self.LOGGER.addHandler(logFile)
-            # Here we add the Filter, think of it as a context
-            self._filter = CallerFilter()
-            self.LOGGER.addFilter(self._filter)
-            self.LOGGER.setLevel(logging.DEBUG)        
         else:
-            raise Exception('Parameter "path" must be provide or "log_as_print" must be True.')
-            
-        self.verbosity = True
-        
-        if default_start:
-            self.LOGGER.info('!*************** START ***************!')
+            log_handler = logging.StreamHandler(sys.stdout)
+        formatter_text = ''
+        accept_conditions = [True]
+        if self.formatter_options.get('IncludeThreadName', None) in accept_conditions:
+            formatter_text = '[%(threadName)-14s] '
+        if self.formatter_options.get('IncludeFileName', None) in accept_conditions:
+            formatter_text = formatter_text + '[%(file)-20s] '
+        if self.formatter_options.get('IncludeDate', None) in accept_conditions:
+            formatter_text = formatter_text + '[%(asctime)s.%(msecs)03d] '
+        if self.formatter_options.get('IncludeLoggerName', None) in accept_conditions:
+            formatter_text = formatter_text + '[%(name)-12s] '
+        if self.formatter_options.get('IncludeLevelName', None) in accept_conditions:
+            formatter_text = formatter_text + '[%(levelname)8s] '        
+        formatter = logging.Formatter(formatter_text + '%(message)s', datefmt='%d-%m-%Y %H:%M:%S')
+        log_handler.setFormatter(formatter)
+        self.LOGGER.addHandler(log_handler)
+        # Here we add the Filter, think of it as a context
+        self._filter = CallerFilter()
+        self.LOGGER.addFilter(self._filter)
+        self.LOGGER.setLevel(self.log_level)
 
     def set_verbosity(self, verbosity: bool=True) -> None:
         """Set verbosity of logs.
@@ -143,13 +177,15 @@ class Log:
             If True, log all levels, 
             If False, log nothing, by default True
         """
-        self.verbosity = verbosity
+        self.log_level = 999
+        self.LOGGER.setLevel(self.log_level)
 
     def reset_verbosity(self) -> None:
         """Turn verbosity as initial state.
         """
-        self.verbosity = True
-            
+        self.log_level = self.original_verbosity
+        self.LOGGER.setLevel(self.log_level)
+    
     @caller_reader
     def debug(self, msg: any) -> None:
         """Log in DEBUG level
@@ -159,11 +195,7 @@ class Log:
         msg : any
             The message that will be logged
         """
-        if self.verbosity:
-            if self.log_as_print:
-                print(f'[{datetime.now().isoformat()}] [    DEBUG] {msg}')
-            else:
-                self.LOGGER.debug(msg)
+        self.LOGGER.debug(msg)
 
     @caller_reader
     def info(self, msg: any) -> None:
@@ -174,11 +206,7 @@ class Log:
         msg : any
             The message that will be logged
         """
-        if self.verbosity:
-            if self.log_as_print:
-                print(f'[{datetime.now().isoformat()}] [     INFO] {msg}')
-            else:
-                self.LOGGER.info(msg)
+        self.LOGGER.info(msg)
         
     @caller_reader
     def warning(self, msg: any) -> None:
@@ -189,11 +217,7 @@ class Log:
         msg : any
             The message that will be logged
         """
-        if self.verbosity:
-            if self.log_as_print:
-                print(f'[{datetime.now().isoformat()}] [  WARNING] {msg}')
-            else:
-                self.LOGGER.warning(msg)
+        self.LOGGER.warning(msg)
 
     @caller_reader
     def error(self, msg: any) -> None:
@@ -204,11 +228,7 @@ class Log:
         msg : any
             The message that will be logged
         """
-        if self.verbosity:
-            if self.log_as_print:
-                print(f'[{datetime.now().isoformat()}] [    ERROR] {msg}')
-            else:
-                self.LOGGER.error(msg)
+        self.LOGGER.error(msg)
         
     @caller_reader
     def critical(self, msg: any) -> None:
@@ -219,11 +239,7 @@ class Log:
         msg : any
             The message that will be logged
         """
-        if self.verbosity:
-            if self.log_as_print:
-                print(f'[{datetime.now().isoformat()}] [ CRITICAL] {msg}')
-            else:
-                self.LOGGER.critical(msg)
+        self.LOGGER.critical(msg)
     
 
 def function_name_start_and_end(
@@ -250,7 +266,6 @@ def function_name_start_and_end(
     @wraps(func)
     def wrapper(*args, **kwargs) -> Union[Any, None]:
         logger.debug(f'FunctionExecution : Start : {func.__name__}()')
-        # logger.debug(f'FunctionExecution : Arguments : args={args}, kwargs={kwargs}')
         response = None
         try:
             response = func(*args, **kwargs)
@@ -259,5 +274,3 @@ def function_name_start_and_end(
         logger.debug(f'FunctionExecution : End : {func.__name__}')
         return response
     return wrapper
-    
-    
