@@ -113,7 +113,7 @@ class Log:
             'IncludeLoggerName': True,
             'IncludeLevelName': True,
         }),
-        # deprecated
+        # deprecated 
         log_as_print: bool=False
     ) -> None:
         self.path = path
