@@ -206,6 +206,7 @@ def typeraze(
     dtypes: List[str]=None,
     ignore_dtypes: List[str]=[],
     custom_treatment: List[TypeColumm]=[],
+    utc: bool=False,
     to_numeric: bool=False,
     LOGGER: Log=None,
     **kwargs
@@ -226,6 +227,9 @@ def typeraze(
         If some colum needs to have a custom treatment 
         on data, the function to treat the column 
         can be specified here, by default []
+    utc : bool, optional
+        If True, apply pd.to_datetime with utc=True, 
+        if False, apply with False, by default False.
     to_numeric : bool, optional
         If True, apply pd.to_numeric before type, 
         if False, do not apply, by default False
@@ -312,7 +316,7 @@ def typeraze(
         
     
     LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime: {time_features_name}...')       
-    df[time_features_name] = df[time_features_name].apply(pd.to_datetime, errors='coerce')
+    df[time_features_name] = df[time_features_name].apply(pd.to_datetime, errors='coerce', utc=utc)
     LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime... Done!')
         
     
