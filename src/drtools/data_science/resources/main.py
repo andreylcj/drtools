@@ -202,7 +202,7 @@ JSONB = ['JSONB', 'JSON']
 
 def typeraze(
     dataframe: DataFrame,
-    features: List[Feature],
+    features: List[SimpleFeature],
     dtypes: List[str]=None,
     ignore_dtypes: List[str]=[],
     custom_treatment: List[TypeColumm]=[],
