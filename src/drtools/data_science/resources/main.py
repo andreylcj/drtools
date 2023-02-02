@@ -217,7 +217,7 @@ def typeraze(
     ----------
     dataframe : DataFrame
         The DataFrame contining the data to be typed.
-    features : DataFrame
+    features : List[SimpleFeature]
         The features to be typed.
     dtypes : List[str], optional
         Specify Dtypes to be handled, by default None
