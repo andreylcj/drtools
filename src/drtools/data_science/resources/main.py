@@ -48,10 +48,13 @@ class CategoricalConditions(TypedDict):
     accept_empty: Optional[bool]
     extra_categories: Optional[Dict[str, int]]
 
-    
-class Feature(TypedDict):
+
+class SimpleFeature(TypedDict):
     name: str
-    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]
+    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]    
+
+    
+class Feature(SimpleFeature):
     description: Union[Categorical, Numerical]
     conditions: Union[CategoricalConditions, ValueRestrictionsAsJson]
     observation: str
