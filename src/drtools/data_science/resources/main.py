@@ -206,7 +206,7 @@ def typeraze(
     dtypes: List[str]=None,
     ignore_dtypes: List[str]=[],
     custom_treatment: List[TypeColumm]=[],
-    utc: bool=False,
+    utc: Union[bool, None]=None,
     to_numeric: bool=False,
     LOGGER: Log=None,
     **kwargs
@@ -227,9 +227,9 @@ def typeraze(
         If some colum needs to have a custom treatment 
         on data, the function to treat the column 
         can be specified here, by default []
-    utc : bool, optional
+    utc : Union[bool, None], optional
         If True, apply pd.to_datetime with utc=True, 
-        if False, apply with False, by default False.
+        if False, apply with False, by default None.
     to_numeric : bool, optional
         If True, apply pd.to_numeric before type, 
         if False, do not apply, by default False
