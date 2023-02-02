@@ -48,10 +48,13 @@ class CategoricalConditions(TypedDict):
     accept_empty: Optional[bool]
     extra_categories: Optional[Dict[str, int]]
 
-    
-class Feature(TypedDict):
+
+class SimpleFeature(TypedDict):
     name: str
-    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]
+    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]    
+
+    
+class Feature(SimpleFeature):
     description: Union[Categorical, Numerical]
     conditions: Union[CategoricalConditions, ValueRestrictionsAsJson]
     observation: str
@@ -199,10 +202,11 @@ JSONB = ['JSONB', 'JSON']
 
 def typeraze(
     dataframe: DataFrame,
-    features: List[Feature],
+    features: List[SimpleFeature],
     dtypes: List[str]=None,
     ignore_dtypes: List[str]=[],
     custom_treatment: List[TypeColumm]=[],
+    utc: Union[bool, None]=None,
     to_numeric: bool=False,
     LOGGER: Log=None,
     **kwargs
@@ -213,7 +217,7 @@ def typeraze(
     ----------
     dataframe : DataFrame
         The DataFrame contining the data to be typed.
-    features : DataFrame
+    features : List[SimpleFeature]
         The features to be typed.
     dtypes : List[str], optional
         Specify Dtypes to be handled, by default None
@@ -223,6 +227,9 @@ def typeraze(
         If some colum needs to have a custom treatment 
         on data, the function to treat the column 
         can be specified here, by default []
+    utc : Union[bool, None], optional
+        If True, apply pd.to_datetime with utc=True, 
+        if False, apply with False, by default None.
     to_numeric : bool, optional
         If True, apply pd.to_numeric before type, 
         if False, do not apply, by default False
@@ -309,7 +316,7 @@ def typeraze(
         
     
     LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime: {time_features_name}...')       
-    df[time_features_name] = df[time_features_name].apply(pd.to_datetime, errors='coerce')
+    df[time_features_name] = df[time_features_name].apply(pd.to_datetime, errors='coerce', utc=utc)
     LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime... Done!')
         
     
