@@ -83,22 +83,22 @@ def handle_lambda(event: Event) -> LambdaResponse:
 		if event.verbose_parameters_sample:
 			parameters_str = str(parameters)
 			parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
-			logger.debug(f'Start execution with parameters (sample): {parameters_sample}')
+			logger.info(f'Start execution with parameters (sample): {parameters_sample}')
 		else:			
-			logger.debug(f'Start execution with parameters: {parameters}')
+			logger.info(f'Start execution with parameters: {parameters}')
 	function_response = None
 	try:
 		function_parameters = parameters if event.direct \
       		else Event(parameters=parameters, execution_function=None, LOGGER=logger)
 		function_response = execution_function(function_parameters)
 		if event.verbose:
-			logger.debug(f'Succesful execution!')
-			logger.debug(f'Lambda execution response:')
+			logger.info(f'Succesful execution!')
+			logger.info(f'Lambda execution response:')
 			response_str = str(function_response)
 			log_text = f'{response_str[:100]}'
 			if len(response_str) > 100:
 				log_text += f' <|:::|> {response_str[-min(len(response_str) - 100, 100):]}'
-			logger.debug(log_text)
+			logger.info(log_text)
 				
 	except Exception as exc: 
 		if event.verbose_parameters_sample:
@@ -107,7 +107,7 @@ def handle_lambda(event: Event) -> LambdaResponse:
 			logger.error(f'Execution with parameters: {parameters} generate an exception: {exc}')
 	timeDiff = (datetime.now() - init).total_seconds()
 	if event.verbose:
-		logger.debug(f"Execution ends in {timeDiff}s.")
+		logger.info(f"Execution ends in {timeDiff}s.")
 	return function_response
 
 
@@ -279,10 +279,10 @@ class ThreadPoolExecutor:
    
 			if self.stop_computation is not None:
 				stop_progress_text = f'({idx_0 + 1}/{len(worker_data_pack)})'
-				self.LOGGER.debug(f'Stop computation execution {stop_progress_text}...')
+				self.LOGGER.info(f'Stop computation execution {stop_progress_text}...')
 				self.stop_computation(curr_response)
-				self.LOGGER.debug(f'Stop computation execution {stop_progress_text}... Done')
-				self.LOGGER.debug(f'Complete execution of {curr_count} from {worker_data_len} workers')    
+				self.LOGGER.info(f'Stop computation execution {stop_progress_text}... Done')
+				self.LOGGER.info(f'Complete execution of {curr_count} from {worker_data_len} workers')    
 				if self.del_response_when_stop:
 					response = []
     
@@ -305,7 +305,7 @@ class ThreadPoolExecutor:
 		progress_percentage = progress(current=current, total=total)
   
 		if event.verbose:
-			self.LOGGER.debug(
+			self.LOGGER.info(
 				f'{progress_percentage}% ({current:,}/{total:,}) complete.'
 			)
 
@@ -335,7 +335,7 @@ class ThreadPoolExecutor:
 			expected_remaining_seconds = math.ceil((total - current) * seconds_by_worker)
 			expected_remaining_seconds = expected_remaining_seconds + 1
    
-			self.LOGGER.debug(
+			self.LOGGER.info(
 				f'Expected remaining time: {display_time(expected_remaining_seconds)}'
 			)
    
