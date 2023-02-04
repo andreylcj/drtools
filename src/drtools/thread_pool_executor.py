@@ -34,6 +34,9 @@ class Event:
 		The function that will be executed
 	verbose : bool, optional
 		If lambda execution will have logs, by default True.
+	verbose_parameters_sample : bool, optional
+		If True, will log only a sample of parameters, 
+  		by default True.
 	direct : bool, optional
 		If True, pass parameters direct to execution function 
   		as arguments, by default False.
@@ -47,12 +50,14 @@ class Event:
 		parameters: any,
 		execution_function: FunctionType,
 		verbose: bool=True,
+  		verbose_parameters_sample: bool=True,
 		direct: bool=False,
   		LOGGER: Log=None
 	) -> None:
 		self.parameters = parameters
 		self.execution_function = execution_function
 		self.verbose = verbose
+		self.verbose_parameters_sample = verbose_parameters_sample
 		self.direct = direct
 		self.LOGGER = logging if LOGGER is None else LOGGER
         
@@ -75,7 +80,12 @@ def handle_lambda(event: Event) -> LambdaResponse:
 	execution_function = event.execution_function
 	logger = event.LOGGER
 	if event.verbose:
-		logger.debug(f'Start execution with parameters: {parameters}')
+		if event.verbose_parameters_sample:
+			parameters_str = str(parameters)
+			parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
+			logger.debug(f'Start execution with parameters (sample): {parameters_sample}')
+		else:			
+			logger.debug(f'Start execution with parameters: {parameters}')
 	function_response = None
 	try:
 		function_parameters = parameters if event.direct \
@@ -91,7 +101,10 @@ def handle_lambda(event: Event) -> LambdaResponse:
 			logger.debug(log_text)
 				
 	except Exception as exc: 
-		logger.error(f'Execution with parameters: {parameters} generate an exception: {exc}')
+		if event.verbose_parameters_sample:
+			logger.error(f'Execution with parameters (sample): {parameters_sample} generate an exception: {exc}')
+		else:
+			logger.error(f'Execution with parameters: {parameters} generate an exception: {exc}')
 	timeDiff = (datetime.now() - init).total_seconds()
 	if event.verbose:
 		logger.debug(f"Execution ends in {timeDiff}s.")
@@ -129,6 +142,9 @@ class ThreadPoolExecutor:
 		If True, the current response will be deleted after 
   		stop computation executes. If False, the response will 
     	be cumulative till the end, by default False.
+	verbose_parameters_sample : bool, optional
+		If True, will log only a sample of parameters, 
+  		by default True.
 	direct : bool, optional
 		If True, pass parameters direct to execution function 
   		as arguments, by default False.
@@ -154,7 +170,8 @@ class ThreadPoolExecutor:
 		stop_count: int=inf, 
 		stop_computation: FunctionType=None,
   		del_response_when_stop: bool=False,
-		direct: bool=False
+		verbose_parameters_sample: bool=False,
+		direct: bool=False,
 	) -> None:
 		self.execution_function = execution_function 
 		self.worker_data = worker_data 
@@ -168,6 +185,7 @@ class ThreadPoolExecutor:
 		self.stop_count = stop_count
 		self.stop_computation = stop_computation
 		self.del_response_when_stop = del_response_when_stop
+		self.verbose_parameters_sample = verbose_parameters_sample
 		self.direct = direct
 
 	def start(
@@ -239,6 +257,7 @@ class ThreadPoolExecutor:
 								parameters=row, 
 								execution_function=execution_function,
 								verbose=(curr_count + idx) in verbose_index,
+        						verbose_parameters_sample=self.verbose_parameters_sample,
         						direct=self.direct,
 								LOGGER=self.LOGGER,
 							),
