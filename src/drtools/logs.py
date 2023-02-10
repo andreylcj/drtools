@@ -177,7 +177,10 @@ class Log:
             If True, log all levels, 
             If False, log nothing, by default True
         """
-        self.log_level = 999
+        if verbosity:
+            self.log_level = 10
+        else:
+            self.log_level = 999
         self.LOGGER.setLevel(self.log_level)
 
     def reset_verbosity(self) -> None:
