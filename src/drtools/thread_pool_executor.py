@@ -79,10 +79,10 @@ def handle_lambda(event: Event) -> LambdaResponse:
 	parameters = event.parameters
 	execution_function = event.execution_function
 	logger = event.LOGGER
+	parameters_str = str(parameters)
+	parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
 	if event.verbose:
 		if event.verbose_parameters_sample:
-			parameters_str = str(parameters)
-			parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
 			logger.info(f'Start execution with parameters (sample): {parameters_sample}')
 		else:			
 			logger.info(f'Start execution with parameters: {parameters}')
