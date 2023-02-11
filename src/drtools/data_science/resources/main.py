@@ -499,12 +499,13 @@ class Model:
             Model name combining id, algorithm nickname, model name 
             and model version.
         """
-        return f'{self.id}-{self.algorithm}_{self.name}_{self.version}'
+        # return f'{self.id}-{self.algorithm}_{self.name}_{self.version}'
+        return f'{self.id}-{self.algorithm}'
     
     # @start_end_log('cols_correct_order')        
     def cols_correct_order(
         self
-    ) -> List[str]:        
+    ) -> List[str]:
         """Returns list of all cols of model, including 
         extra columns, in correct order.
 
@@ -524,7 +525,7 @@ class Model:
     @start_end_log('load_model')
     def load_model(
         self,
-        project_root_path: str,
+        model_file_path: str,
         *args,
         **kwargs
     ) -> Any:
@@ -532,8 +533,8 @@ class Model:
 
         Parameters
         ----------
-        project_root_path : str
-            The root path of project.
+        model_file_path : str
+            Path of model file.
         args : Tuple, optional
             All args inputs will be passed to load model 
             function, by default ().
@@ -556,18 +557,10 @@ class Model:
         model = None        
         if self.algorithm == 'lgbm':
             import lightgbm as lgb
-            model = lgb.Booster(
-                model_file=f'{project_root_path}/models/{self.get_model_name()}/model/{self.get_model_name()}.txt',
-                *args,
-                **kwargs
-            )
+            model = lgb.Booster(model_file=model_file_path, *args, **kwargs)
         elif self.algorithm == 'NN':
             from tensorflow import keras
-            model = keras.models.load_model(
-                f'{project_root_path}/models/{self.get_model_name()}/model/{self.get_model_name()}',
-                *args,
-                **kwargs
-            )
+            model = keras.models.load_model(model_file_path, *args, **kwargs)
         else:
             raise Exception(f'Algorithm {self.algorithm} is invalid.')        
         self.LOGGER.info(f'Loading model {self.get_model_name()}... Done!')        
@@ -664,8 +657,7 @@ class Model:
     @start_end_log('predict')
     def predict(
         self,
-        # model_instance: Any,
-        project_root_path: str,
+        model_file_path: str,
         X: Any,
         *args,
         **kwargs
@@ -674,8 +666,8 @@ class Model:
 
         Parameters
         ----------
-        model_instance : Any
-            Instance of desired model to train.
+        model_file_path : str
+            Path of model file.
         X : Any
             X data to predict.
         args : Tuple, optional
@@ -696,7 +688,7 @@ class Model:
             If model algorithm is invalid
         """    
         self.LOGGER.info(f'Predicting data for model {self.get_model_name()}...')  
-        model_instance = self.load_model(project_root_path)              
+        model_instance = self.load_model(model_file_path)
         if self.algorithm == 'lgbm':
             y_pred = model_instance.predict(X, *args, **kwargs)
         elif self.algorithm == 'NN':
@@ -850,7 +842,10 @@ class Model:
         
         df = dataframe.copy()
         
-        self.LOGGER.set_verbosity(verbosity)
+        try:
+            self.LOGGER.set_verbosity(verbosity)
+        except:
+            pass
         
         all_features = self.input_features + self.output_features
         
@@ -982,7 +977,10 @@ class Model:
             
         self.LOGGER.debug('Transforming and filtering Categorical variables... Done!')
             
-        self.LOGGER.reset_verbosity()
+        try:
+            self.LOGGER.reset_verbosity()
+        except:
+            pass
             
         return df
     
@@ -1224,7 +1222,10 @@ class Database(ABC):
         
         custom_treatment = self.CONFIG.get('typeraze_customTreatment', [])
         
-        self.LOGGER.set_verbosity(verbosity)
+        try:
+            self.LOGGER.set_verbosity(verbosity)
+        except:
+            pass
         
         df = typeraze(
             dataframe=df,
@@ -1236,7 +1237,10 @@ class Database(ABC):
             **kwargs
         )
         
-        self.LOGGER.reset_verbosity()
+        try:
+            self.LOGGER.reset_verbosity()
+        except:
+            pass
         
         return df
         
