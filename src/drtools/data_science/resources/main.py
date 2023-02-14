@@ -499,8 +499,7 @@ class Model:
             Model name combining id, algorithm nickname, model name 
             and model version.
         """
-        # return f'{self.id}-{self.algorithm}_{self.name}_{self.version}'
-        return f'{self.id}-{self.algorithm}'
+        return f'{self.name}-{self.version}'
     
     # @start_end_log('cols_correct_order')        
     def cols_correct_order(
@@ -555,14 +554,14 @@ class Model:
         
         self.LOGGER.info(f'Loading model {self.get_model_name()}...')        
         model = None        
-        if self.algorithm == 'lgbm':
+        if self.model_algorithm == 'LightGBM':
             import lightgbm as lgb
             model = lgb.Booster(model_file=model_file_path, *args, **kwargs)
-        elif self.algorithm == 'NN':
+        elif self.model_algorithm == 'NeuralNetworks':
             from tensorflow import keras
             model = keras.models.load_model(model_file_path, *args, **kwargs)
         else:
-            raise Exception(f'Algorithm {self.algorithm} is invalid.')        
+            raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
         self.LOGGER.info(f'Loading model {self.get_model_name()}... Done!')        
         return model
     
@@ -570,7 +569,7 @@ class Model:
     def save_model(
         self,
         model_instance: Any,
-        project_root_path: str,
+        path: str,
         *args,
         **kwargs
     ) -> None:
@@ -580,8 +579,8 @@ class Model:
         ----------
         model_instance : Any
             Instance of desired model to save. 
-        project_root_path : str
-            The root path of project.
+        path : str
+            The path to save model.
         args : Tuple, optional
             All args inputs will be passed to save model 
             function, by default ().
@@ -600,15 +599,15 @@ class Model:
             If model algorithm is invalid
         """
         self.LOGGER.info(f'Saving model {self.get_model_name()}...')        
-        save_path = f'{project_root_path}/models/{self.get_model_name()}/model/{self.get_model_name()}'        
-        if self.algorithm == 'lgbm':
-            create_directories_of_path(save_path)
-            model_instance.save_model(filename=save_path, *args, **kwargs)
-        elif self.algorithm == 'NN':
-            create_directories_of_path(save_path)
-            model_instance.save(save_path, *args, **kwargs)
+        # save_path = f'{project_root_path}/models/{self.get_model_name()}/model/{self.get_model_name()}'        
+        if self.model_algorithm == 'LightGBM':
+            create_directories_of_path(path)
+            model_instance.save_model(filename=path, *args, **kwargs)
+        elif self.model_algorithm == 'NeuralNetworks':
+            create_directories_of_path(path)
+            model_instance.save(path, *args, **kwargs)
         else:
-            raise Exception(f'Algorithm {self.algorithm} is invalid.')        
+            raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
         self.LOGGER.info(f'Saving model {self.get_model_name()}... Done!')
     
     @start_end_log('train')
@@ -642,17 +641,17 @@ class Model:
             If model algorithm is invalid
         """
         self.LOGGER.info(f'Training model {self.get_model_name()}...')                
-        if self.algorithm == 'lgbm':
+        if self.model_algorithm == 'LightGBM':
             import lightgbm as lgb
             model_instance = lgb.train(*args, **kwargs)
             self.LOGGER.info(f'Training model {self.get_model_name()}... Done!')            
             return model_instance
-        elif self.algorithm == 'NN':
+        elif self.model_algorithm == 'NeuralNetworks':
             history = model_instance.fit(*args, **kwargs)
             self.LOGGER.info(f'Training model {self.get_model_name()}... Done!')            
             return model_instance, history
         else:
-            raise Exception(f'Algorithm {self.algorithm} is invalid.')
+            raise Exception(f'Algorithm {self.model_algorithm} is invalid.')
     
     @start_end_log('predict')
     def predict(
@@ -689,13 +688,13 @@ class Model:
         """    
         self.LOGGER.info(f'Predicting data for model {self.get_model_name()}...')  
         model_instance = self.load_model(model_file_path)
-        if self.algorithm == 'lgbm':
+        if self.model_algorithm == 'LightGBM':
             y_pred = model_instance.predict(X, *args, **kwargs)
-        elif self.algorithm == 'NN':
+        elif self.model_algorithm == 'NeuralNetworks':
             y_pred = model_instance.predict(X, *args, **kwargs)
             y_pred = y_pred.reshape(1, -1)[0]
         else:
-            raise Exception(f'Algorithm {self.algorithm} is invalid.')        
+            raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
         self.LOGGER.info(f'Predicting data for model {self.get_model_name()}... Done!')        
         return y_pred
     
