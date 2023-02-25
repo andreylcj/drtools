@@ -6,7 +6,10 @@ of system.
 
 import os
 from typing import List
-import drtools.utils as Utils
+from drtools.utils import (
+    get_os_name,
+    join_path
+)
 import json
 import gzip
 
@@ -45,9 +48,9 @@ def split_path(
     List[str]
         List with pieces of path.
     """
-    if Utils.get_os_name() == "Windows": return path.split("\\")
-    elif Utils.get_os_name() == "Linux": return path.split("/")
-    elif Utils.get_os_name() == "Darwin": return path.split("\\")
+    if get_os_name() == "Windows": return path.split("\\")
+    elif get_os_name() == "Linux": return path.split("/")
+    elif get_os_name() == "Darwin": return path.split("\\")
 
 
 def move_file(
@@ -108,35 +111,40 @@ def get_files_path(
     List
         List of files path inside parent path directory.
     """
-    filesPathArr = []
+    files_path_arr = []
     ignore_cuz_content_name_have_some_of_the_words = False
-    for contentName in content_arr:
+    for content_name in content_arr:
+        
+        content_path = f'{parent_path}/{content_name}'
+        
         ignore_words_len = len(ignore_if_contain_some_of_the_words)
         for index1, word in enumerate(ignore_if_contain_some_of_the_words):
-            if word in contentName:
+            if word in content_name:
                 ignore_cuz_content_name_have_some_of_the_words = True
                 break
             elif index1 == ignore_words_len - 1:
                 ignore_cuz_content_name_have_some_of_the_words = False
-        if len(contentName.split(".")) > 1:
-            if contentName not in ignore_files \
+                
+        if os.path.isfile(content_path):
+            if content_name not in ignore_files \
             and not ignore_cuz_content_name_have_some_of_the_words:
-                filesPathArr.append(
-                    Utils.join_path(parent_path, contentName)
+                files_path_arr.append(
+                    join_path(parent_path, content_name)
                 )
-        elif contentName not in ignore_folders \
+                
+        elif content_name not in ignore_folders \
         and not ignore_cuz_content_name_have_some_of_the_words:
-            nextParentPath = Utils.join_path(parent_path, contentName)
-            nextContentArr = os.listdir(nextParentPath)
-            filesPathArr = filesPathArr \
+            next_parent_path = join_path(parent_path, content_name)
+            next_content_arr = os.listdir(next_parent_path)
+            files_path_arr = files_path_arr \
                 + get_files_path(
-                    nextParentPath, 
-                    nextContentArr, 
+                    next_parent_path, 
+                    next_content_arr, 
                     ignore_files, 
                     ignore_folders, 
                     ignore_if_contain_some_of_the_words
                 )
-    return filesPathArr
+    return files_path_arr
 
 
 def list_path_of_all_files_inside_directory(
@@ -171,11 +179,11 @@ def list_path_of_all_files_inside_directory(
     itemsPath = []
     if len(dataDirectoryContent) > 0:
       itemsPath = get_files_path(
-            root_directory_path, 
-            dataDirectoryContent, 
-            ignore_files, 
-            ignore_folders, 
-            ignore_if_contain_some_of_the_words
+            parent_path=root_directory_path, 
+            content_arr=dataDirectoryContent, 
+            ignore_files=ignore_files, 
+            ignore_folders=ignore_folders, 
+            ignore_if_contain_some_of_the_words=ignore_if_contain_some_of_the_words
         )
     return itemsPath
 
@@ -221,11 +229,11 @@ def create_directories_of_path(
     
     split_path = None
     
-    if Utils.get_os_name() == "Windows": 
+    if get_os_name() == "Windows": 
         split_path = path.split("\\")
-    elif Utils.get_os_name() == "Linux": 
+    elif get_os_name() == "Linux": 
         split_path = path.split("/")
-    elif Utils.get_os_name() == "Darwin": 
+    elif get_os_name() == "Darwin": 
         split_path = path.split("\\")
         
     temp_path = None
@@ -236,12 +244,12 @@ def create_directories_of_path(
         if len(env_path.split(".")) > 1 and index == len(split_path) - 1: 
             break
         if temp_path == None: 
-            if Utils.get_os_name() == "Windows": 
+            if get_os_name() == "Windows": 
                 temp_path = env_path + '\\'
                 continue
-            elif Utils.get_os_name() == "Linux": 
+            elif get_os_name() == "Linux": 
                 temp_path = "/"
-        temp_path = Utils.join_path(temp_path, env_path)
+        temp_path = join_path(temp_path, env_path)
         if not os.path.exists(temp_path): 
             try:
                 os.makedirs(temp_path, exist_ok=True)
