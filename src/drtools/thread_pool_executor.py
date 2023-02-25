@@ -228,7 +228,7 @@ class ThreadPoolExecutor:
 		verbose_items = np.arange(worker_data_len)
 		num_elems = math.ceil(len(verbose_items) * self.verbose_percentage)
 		verbose_index = np.round(np.linspace(0, worker_data_len - 1, num_elems)).astype(int)
-		verbose_index = verbose_index[1:] if len(verbose_index) > 1 else verbose_index
+		# verbose_index = verbose_index[1:] if len(verbose_index) > 1 else verbose_index
 		verbose_index = verbose_index if verbose_index[-1] == worker_data_len - 1 \
 			else verbose_index + [worker_data_len - 1]
   
