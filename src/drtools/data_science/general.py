@@ -8,6 +8,7 @@ classes and other stuff.
 from typing import Dict, List, Union, Optional, TypedDict
 import numpy as np
 from pandas import DataFrame
+from drtools.utils import list_ops
 
 
 ### Comparison Operators
@@ -167,8 +168,11 @@ class FindOnData:
         elif self.DataType == NumpyDataType:
             return self.Data[:, column] >= value
     
-    def _perform_in_op(self, column, value):
-        pass
+    def _perform_in_op(self, column, value: List):
+        if self.DataType == DataFrameDataType:
+            return self.Data[column].isin(value)
+        elif self.DataType == NumpyDataType:
+            raise Exception("Operation $in must for NumpyDataType.")
     
     def _perform_lt_op(self, column, value):
         if self.DataType == DataFrameDataType:
@@ -189,7 +193,10 @@ class FindOnData:
             return self.Data[:, column] != value
     
     def _perform_nin_op(self, column, value):
-        pass
+        if self.DataType == DataFrameDataType:
+            return ~self.Data[column].isin(value)
+        elif self.DataType == NumpyDataType:
+            raise Exception("Operation $nin must for NumpyDataType.")
     
     def _perform_comparison_operation(self, data, query) -> DataFrame:
         final_conditions_response = None
