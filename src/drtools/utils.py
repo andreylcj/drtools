@@ -44,7 +44,8 @@ def progress(
 
 def flatten(
     dict_: Dict, 
-    separator: str='.'
+    separator: str='.',
+    flatten_list: bool=False
 ) -> Dict:
     """Flatten dict.
 
@@ -64,23 +65,31 @@ def flatten(
         items = []
         for k, v in _dict_.items():
             new_key = parent_key + _separator + k if parent_key else k
-            if type(v) == dict:
+            if isinstance(v, dict):
                 items.extend(
                     _flatten(v, _separator=_separator, parent_key=new_key).items()
                 )
             else:
-                new_v = None
-                if type(v) == list:
+                if isinstance(v, list):
                     new_v = []
-                    for item in v:
-                        if type(item) == dict:
+                    for idx, item in enumerate(v):
+                        if isinstance(item, dict):
                             val = _flatten(item, _separator, parent_key='')
                         else:
                             val = item
-                        new_v.append(val)
-                items.append((new_key, new_v or v))
+                            
+                        if flatten_list:
+                            items.append((f'{new_key}{_separator}$idx:{idx}', val))
+                        else:
+                            new_v.append(val)
+                    if not flatten_list:
+                        items.append((new_key, new_v))
+                else:
+                    items.append((new_key, v))
         return dict(items)
     result = _flatten(dict_, separator, parent_key='')
+    if flatten_list:
+        result = _flatten(result, separator, parent_key='')
     return result
   
   
