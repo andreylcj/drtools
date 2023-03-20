@@ -11,7 +11,10 @@ import os
 import numpy as np
 from datetime import datetime
 import logging
-from drtools.utils import ValueRestrictions, ValueRestrictionsAsJson
+from drtools.utils import (
+    ValueRestrictions, ValueRestrictionsAsJson,
+    start_end_log
+)
 from drtools.file_manager import (
     create_directories_of_path, rm_file, 
     list_path_of_all_files_inside_directory
@@ -69,32 +72,6 @@ class Config(TypedDict):
     insert_oneFile: bool
     insert_fileExtension: bool
     typeraze_customTreatment: List[TypeColumm]
-
-
-def start_end_log(method):
-    """Decorator to print name of execution method before and 
-    after method execution.
-
-    Parameters
-    ----------
-    method : str
-        The method name that will be executed.
-    """
-    def decorator(f):
-        def wrapper(self, *args, **kwargs):
-            if self.LOGGER is not None:
-                self.LOGGER.debug(f'Executing {method}()...')
-                
-            # execution
-            response = f(self, *args, **kwargs)
-            
-            if self.LOGGER is not None:
-                self.LOGGER.debug(f'Executing {method}()... Done!')
-                
-            return response
-        wrapper.__doc__ = f.__doc__
-        return wrapper
-    return decorator
 
 
 def filter_categorical(
@@ -1069,7 +1046,7 @@ class Model:
                 for feature in custom
             ]
         df = dataframe.copy()
-        df = typeraze(dataframe=df, features=features, LOGGER=self.LOGGER, **kwargs)        
+        df = typeraze(dataframe=df, features=features, LOGGER=self.LOGGER, **kwargs)
         return df
 
 

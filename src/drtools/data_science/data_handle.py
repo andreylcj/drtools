@@ -5,13 +5,14 @@ pandas DataFrame or pandas Series.
 """
 
 
-import drtools.utils as Utils
+from drtools.utils import list_ops
 from typing import List, Union, Tuple
 from pandas import DataFrame, Series, cut
 from scipy import stats
 import numpy as np
 import math
 from copy import deepcopy
+import pandas as pd
 
 
 ByPercentage = 'by-percentage'
@@ -187,7 +188,7 @@ def join_categories(
 
     Parameters
     ----------
-    df : DataFrame
+    dataframe : DataFrame
         The DataFrame
     col_name : str
         The column name where categories will be joined.
@@ -206,6 +207,44 @@ def join_categories(
         return df
     condition = df[col_name].isin(categories)
     df.loc[condition, col_name] = to_category
+    return df
+
+
+def keep_categories_and_join_remaining(
+    dataframe: DataFrame,
+    column: str,
+    categories: List[str]=[], 
+    to_category: str='others'
+) -> DataFrame:
+    """Join categories and fill these values with desired value.
+
+    Parameters
+    ----------
+    dataframe : DataFrame
+        The DataFrame
+    column : str
+        The column name where categories will be joined.
+    categories : List[str], optional
+        List of categories will be joined, by default []
+    to_category : str, optional
+        New value for selected categories, by default 'others'
+
+    Returns
+    -------
+    DataFrame
+        The DataFrame after join the categories
+    """
+    df = dataframe.copy()
+    if len(categories) == 0:
+        return df
+    df[column] = np.where(
+        pd.isnull(df[column]), 
+        df[column], 
+        df[column].astype(str)
+    ) 
+    join_cat = list(df[column].dropna().unique())
+    join_cat = list_ops(join_cat, categories)
+    df = join_categories(df, column, join_cat, to_category)
     return df
 
 
@@ -450,7 +489,7 @@ def join_categories_lt(
         value=value,
     )
     all_categories = list(df[col_name].value_counts().index)
-    join_categories_list = Utils.list_difference(
+    join_categories_list = list_ops(
         all_categories, 
         keep_categories
     )
@@ -502,7 +541,7 @@ def keep_categories_ge(
         by=by,
         value=value,
     )
-    keep_categories = Utils.list_difference(
+    keep_categories = list_ops(
         keep_categories, 
         force_remove
     )
