@@ -12,9 +12,9 @@ import numpy as np
 from datetime import datetime
 import logging
 from drtools.utils import (
-    ValueRestrictions, ValueRestrictionsAsJson,
-    start_end_log
+    ValueRestrictions, ValueRestrictionsAsJson
 )
+from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path, rm_file, 
     list_path_of_all_files_inside_directory

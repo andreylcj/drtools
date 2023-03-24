@@ -9,6 +9,7 @@ from typing import Dict, List, Union, Optional, TypedDict
 import numpy as np
 from pandas import DataFrame
 from drtools.utils import list_ops
+from drtools.logs import Log
 
 
 ### Comparison Operators
@@ -62,7 +63,8 @@ class FindOnData:
         data: Data,
         query: Query,
         data_type: Union[DataFrameDataType, NumpyDataType]=DataFrameDataType,
-        data_columns: List[str]=None
+        data_columns: List[str]=None,
+        LOGGER=None
     ) -> None:        
         assert data_type in [DataFrameDataType, NumpyDataType], \
             f'Invalid data_type: {data_type}'
@@ -78,6 +80,10 @@ class FindOnData:
                 col_name: idx
                 for idx, col_name in enumerate(self.DataColumns)
             }
+        if LOGGER is None:
+            self.LOGGER = Log()
+        else:
+            self.LOGGER = LOGGER
     
     def _is_valid_logical_syntax(self, query) -> bool:
         try:
@@ -148,7 +154,10 @@ class FindOnData:
         return op_name == "$ne"
     
     def _is_nin_op(self, op_name):
-        return op_name == "$nin"        
+        return op_name == "$nin"
+    
+    def _is_isna_op(self, op_name):
+        return op_name == "$isna"
     
     def _perform_eq_op(self, column, value):
         if self.DataType == DataFrameDataType:
@@ -197,6 +206,15 @@ class FindOnData:
             return ~self.Data[column].isin(value)
         elif self.DataType == NumpyDataType:
             raise Exception("Operation $nin must for NumpyDataType.")
+        
+    def _perform_isna_op(self, column, value):
+        if self.DataType == DataFrameDataType:
+            if value is True:
+                return self.Data[column].isna()
+            else:
+                return self.Data[column].notna()
+        elif self.DataType == NumpyDataType:
+            raise Exception("Operation $isna must for NumpyDataType.")
     
     def _perform_comparison_operation(self, data, query) -> DataFrame:
         final_conditions_response = None
@@ -209,12 +227,20 @@ class FindOnData:
                     resp = self._perform_gt_op(column=col, value=val)
                 elif self._is_gte_op(op_name=operation):
                     resp = self._perform_gte_op(column=col, value=val)
+                elif self._is_in_op(op_name=operation):
+                    resp = self._perform_in_op(column=col, value=val)
                 elif self._is_lt_op(op_name=operation):
                     resp = self._perform_lt_op(column=col, value=val)
                 elif self._is_lte_op(op_name=operation):
                     resp = self._perform_lte_op(column=col, value=val)
                 elif self._is_ne_op(op_name=operation):
                     resp = self._perform_ne_op(column=col, value=val)
+                elif self._is_nin_op(op_name=operation):
+                    resp = self._perform_nin_op(column=col, value=val)
+                elif self._is_isna_op(op_name=operation):
+                    resp = self._perform_isna_op(column=col, value=val)
+                else:
+                    raise Exception(f"Invalid comparison operator: {single_comparison_query}")
                 if final_conditions_response is None:
                     final_conditions_response = resp
                 else:
@@ -301,10 +327,12 @@ class FindOnData:
                             )
                 return final_query_conditional_response
             elif self._is_valid_comparison_syntax(query=query):
+                self.LOGGER.info(f'Comparison Query: {query}')
                 resp = self._perform_comparison_operation(
                     data=self.Data, 
                     query=query
                 )
+                self.LOGGER.info(f'Valid rows: {resp.sum()} from {self.Data.shape[0]}')
                 return resp
         query_conditional = _recursive_query(query=self.Query, depth=0)
         return self.Data[query_conditional]
