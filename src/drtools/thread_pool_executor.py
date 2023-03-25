@@ -2,11 +2,10 @@
 
 """
 
-import os
+
 import concurrent
 import concurrent.futures
 import logging
-from logging import Logger
 from datetime import datetime
 from typing import Dict, List
 from types import FunctionType
@@ -197,7 +196,6 @@ class ThreadPoolExecutor:
 		self.num_of_processed_workers = 0  
 		self.started_at = datetime.now()
 		self.updated_at = datetime.now()
-		self._progress_workers = []
 		self._progress_time = []
   
 		if len(self.worker_data) == 0:
@@ -231,6 +229,8 @@ class ThreadPoolExecutor:
 		# verbose_index = verbose_index[1:] if len(verbose_index) > 1 else verbose_index
 		verbose_index = verbose_index if verbose_index[-1] == worker_data_len - 1 \
 			else verbose_index + [worker_data_len - 1]
+
+		self.TotalWorkerDataLen = worker_data_len
   
 		response = []
 		worker_data_pack = []
@@ -262,7 +262,6 @@ class ThreadPoolExecutor:
 								LOGGER=self.LOGGER,
 							),
 							'current': curr_count + idx + 1,
-							'total': worker_data_len
 						}
 					): worker_id_pattern(row) 
 					for idx, row in enumerate(sub_worker_data)
@@ -296,51 +295,45 @@ class ThreadPoolExecutor:
 	) -> any:
 
 		event = data.get('event')
-		lambda_response = handle_lambda(event)
-		# current = data.get('current')
-		total = data.get('total')
+
+		lambda_exec_start = datetime.now()
   
-		self.num_of_processed_workers = self.num_of_processed_workers + 1
-		current = self.num_of_processed_workers  
-		progress_percentage = progress(current=current, total=total)
+  		#########################################
+		### Exec Lambda
+  		#########################################
+		lambda_response = handle_lambda(event)
+  		#########################################
+    
+		lambda_exec_time = (datetime.now() - lambda_exec_start).seconds
+		lambda_exec_time = lambda_exec_time + (datetime.now() - lambda_exec_start).lambda_exec_time / 1e6
+  
+		total = self.TotalWorkerDataLen
+
+		progress_percentage = progress(
+			current=self.num_of_processed_workers, 
+			total=total
+   		)
   
 		if event.verbose:
 			self.LOGGER.info(
-				f'{progress_percentage}% ({current:,}/{total:,}) complete.'
+				f'{progress_percentage}% ({self.num_of_processed_workers:,}/{total:,}) complete.'
 			)
 
-			curr_diff_time = (datetime.now() - self.updated_at).seconds
-			curr_diff_time = curr_diff_time + (datetime.now() - self.updated_at).microseconds / 1e6
-			self._progress_time.append(curr_diff_time)
+			self._progress_time.append(lambda_exec_time)
    
-			if len(self._progress_workers) == 0:
-				self._progress_workers.append(current)
-				self._progress_workers.append(current)
-				progress_curr = current
-			else:
-				progress_curr = current - self._progress_workers[-1]
-				self._progress_workers[-1] = progress_curr
-				self._progress_workers.append(current)
-    
-			self._progress_workers = self._progress_workers[-6:]
-			self._progress_time = self._progress_time[-5:]
+			#########################################
+			### Mean of exec time from last 5 workers
+			#########################################
+			seconds_by_worker = np.array(self._progress_time[-5:]).mean()
+			#########################################
 
-			seconds_by_worker = np.array([
-       			execution_time / num_of_workers 
-          		for num_of_workers, execution_time in zip(self._progress_workers, self._progress_time)
-            ])
-   
-			seconds_by_worker = seconds_by_worker.mean()
-
-			expected_remaining_seconds = math.ceil((total - current) * seconds_by_worker)
+			expected_remaining_seconds = math.ceil((total - self.num_of_processed_workers) * seconds_by_worker)
 			expected_remaining_seconds = expected_remaining_seconds + 1
    
 			self.LOGGER.info(
 				f'Expected remaining time: {display_time(expected_remaining_seconds)}'
 			)
-   
-			self.updated_at = datetime.now()
-   
+
 		return lambda_response
 
 	def get_worker_data(
