@@ -8,12 +8,15 @@ import os
 from datetime import datetime
 import re
 import platform
-from types import FunctionType, LambdaType
-from typing import Dict, List, Tuple, Union, Optional, TypedDict
 import json
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from typing import (
+    Any, Type, TypedDict, Callable,
+    Tuple, Dict, List, Union, Optional,
+    get_origin, get_args
+)
 
 
 def progress(
@@ -579,7 +582,7 @@ class ValueRestrictions:
         smaller_or_equal_than: float=None,
         equals_to: float=None,
         not_equals_to: float=None,
-        extra_restrictions: List[Union[FunctionType, LambdaType]]=None
+        extra_restrictions: List[Callable]=None
     ) -> None:
         self.bigger_than = bigger_than
         self.bigger_or_equal_than = bigger_or_equal_than
@@ -758,3 +761,100 @@ class ValueRestrictions:
         self.equals_to = value_restrictions_dict.get('equals_to', None)
         self.not_equals_to = value_restrictions_dict.get('not_equals_to', None)
         self.extra_restrictions = value_restrictions_dict.get('extra_restrictions', None)
+
+
+def is_typing_list(obj: Any) -> bool:
+    """Verify if type is typing.List
+
+    Parameters
+    ----------
+    obj : Any
+        The object type to verify.
+
+    Returns
+    -------
+    bool
+        True if objec is typing.List, else 
+        return False
+    """
+    return get_origin(obj) is list
+
+def is_typing_dict(obj: Any) -> bool:
+    """Verify if type is typing.Dict
+
+    Parameters
+    ----------
+    obj : Any
+        The object type to verify.
+
+    Returns
+    -------
+    bool
+        True if objec is typing.Dict, else 
+        return False
+    """
+    return get_origin(obj) is dict
+
+def is_typed_dict(obj: Any) -> bool:
+    """Verify if type is typing.TypedDict
+
+    Parameters
+    ----------
+    obj : Any
+        The object type to verify.
+
+    Returns
+    -------
+    bool
+        True if objec is typing.TypedDict, else 
+        return False
+    """
+    return 'TypedDict' in str(getattr(obj, '__class__', None))
+
+
+BASE_TYPES = [str, float, int, bool]
+
+
+def class_to_dict(
+    obj: Any, 
+    expected_obj_type: Union[Type[TypedDict], List, Dict, str, float, int, bool]
+) -> TypedDict:
+    """Get JSON representation based on expected_obj_type from instantiated object.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to get value
+    expected_obj_type : Union[Type[TypedDict], List, Dict, str, float, int, bool]
+        The expected type of object
+
+    Returns
+    -------
+    TypedDict
+        The JSON representation of object values.
+
+    Raises
+    ------
+    Exception
+        _description_
+    """
+    if expected_obj_type in BASE_TYPES:
+        result = obj
+    elif is_typing_list(expected_obj_type):
+        result = []
+        item_type = get_args(expected_obj_type)[0]
+        for item in obj:
+            result.append(class_to_dict(item, item_type))
+    elif is_typing_dict(expected_obj_type):
+        result = {}
+        key_type, item_type = get_args(expected_obj_type)
+        for key_item, val_item in obj.items():
+            result[class_to_dict(key_item, key_type)] = class_to_dict(val_item, item_type)
+    elif is_typed_dict(expected_obj_type):
+        result = {}
+        for key, type_ in expected_obj_type.__annotations__.items():
+            val = getattr(obj, key, None)
+            result[key] = class_to_dict(val, type_)
+    else:
+        raise Exception("Object Type not supported")
+    return result
