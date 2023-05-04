@@ -838,7 +838,9 @@ def class_to_dict(
     Exception
         _description_
     """
-    if expected_obj_type in BASE_TYPES:
+    if obj is None:
+        result = None
+    elif expected_obj_type in BASE_TYPES:
         result = obj
     elif is_typing_list(expected_obj_type):
         result = []
