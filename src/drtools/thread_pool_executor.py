@@ -304,8 +304,7 @@ class ThreadPoolExecutor:
 		lambda_response = handle_lambda(event)
   		#########################################
     
-		lambda_exec_time = (datetime.now() - lambda_exec_start).seconds
-		lambda_exec_time = lambda_exec_time + (datetime.now() - lambda_exec_start).lambda_exec_time / 1e6
+		lambda_exec_time = (datetime.now() - lambda_exec_start).total_seconds()
   
 		total = self.TotalWorkerDataLen
 
