@@ -305,6 +305,7 @@ class ThreadPoolExecutor:
   		#########################################
     
 		lambda_exec_time = (datetime.now() - lambda_exec_start).total_seconds()
+		self.num_of_processed_workers = self.num_of_processed_workers + 1
   
 		total = self.TotalWorkerDataLen
 
