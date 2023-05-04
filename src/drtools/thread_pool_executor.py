@@ -314,12 +314,14 @@ class ThreadPoolExecutor:
 			total=total
    		)
   
+		self._progress_time.append(lambda_exec_time)
+  
 		if event.verbose:
 			self.LOGGER.info(
 				f'{progress_percentage}% ({self.num_of_processed_workers:,}/{total:,}) complete.'
 			)
 
-			self._progress_time.append(lambda_exec_time)
+			# self._progress_time.append(lambda_exec_time)
    
 			#########################################
 			### Mean of exec time from last 5 workers
