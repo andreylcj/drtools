@@ -195,8 +195,6 @@ class ThreadPoolExecutor:
   
 		self.num_of_processed_workers = 0  
 		self.started_at = datetime.now()
-		self.updated_at = datetime.now()
-		self._progress_time = []
   
 		if len(self.worker_data) == 0:
 			self.LOGGER.info('No data to process...')
@@ -230,7 +228,7 @@ class ThreadPoolExecutor:
 		verbose_index = verbose_index if verbose_index[-1] == worker_data_len - 1 \
 			else verbose_index + [worker_data_len - 1]
 
-		self.TotalWorkerDataLen = worker_data_len
+		self.total_worker_data_len = worker_data_len
   
 		response = []
 		worker_data_pack = []
@@ -296,7 +294,7 @@ class ThreadPoolExecutor:
 
 		event = data.get('event')
 
-		lambda_exec_start = datetime.now()
+		# lambda_exec_start = datetime.now()
   
   		#########################################
 		### Exec Lambda
@@ -304,32 +302,34 @@ class ThreadPoolExecutor:
 		lambda_response = handle_lambda(event)
   		#########################################
     
-		lambda_exec_time = (datetime.now() - lambda_exec_start).total_seconds()
 		self.num_of_processed_workers = self.num_of_processed_workers + 1
   
-		total = self.TotalWorkerDataLen
-
-		progress_percentage = progress(
-			current=self.num_of_processed_workers, 
-			total=total
-   		)
-  
-		self._progress_time.append(lambda_exec_time)
-  
 		if event.verbose:
+      
+			# lambda_exec_time = (datetime.now() - lambda_exec_start).total_seconds()
+			total_exec_time = (datetime.now() - self.started_at).total_seconds()
+	
+			# self._progress_time.append(lambda_exec_time)
+  
+			progress_percentage = progress(
+				current=self.num_of_processed_workers, 
+				total=self.total_worker_data_len
+			)
+    
 			self.LOGGER.info(
-				f'{progress_percentage}% ({self.num_of_processed_workers:,}/{total:,}) complete.'
+				f'{progress_percentage}% ({self.num_of_processed_workers:,}/{self.total_worker_data_len:,}) complete.'
 			)
 
 			# self._progress_time.append(lambda_exec_time)
    
 			#########################################
-			### Mean of exec time from last 5 workers
+			### Mean of exec time from all workers
 			#########################################
-			seconds_by_worker = np.array(self._progress_time[-5:]).mean()
+			# seconds_by_worker = np.array(self._progress_time[-5:]).mean()
+			seconds_by_worker = total_exec_time / self.num_of_processed_workers
 			#########################################
 
-			expected_remaining_seconds = math.ceil((total - self.num_of_processed_workers) * seconds_by_worker)
+			expected_remaining_seconds = math.ceil((self.total_worker_data_len - self.num_of_processed_workers) * seconds_by_worker)
 			expected_remaining_seconds = expected_remaining_seconds + 1
    
 			self.LOGGER.info(
