@@ -18,6 +18,7 @@ from typing import (
     get_origin, get_args
 )
 import math
+from enum import Enum
 
 
 def progress(
@@ -864,8 +865,10 @@ def class_to_dict(
 
 
 def to_dict(
-    obj: Any, 
-    classkey: Any=None
+    obj: Any,
+    ignore_meta_when_expanded: bool=True,
+    self_class_name: str="self",
+    ignore_attr: List[str]=[]
 ) -> Dict:
     """Get Dict representation of instantiated object.
 
@@ -873,32 +876,98 @@ def to_dict(
     ----------
     obj : Any
         The object to get value
-    classkey : Any, optional
-        Key from data, by default None
 
     Returns
     -------
     Dict
         The Dict representation of object.
     """
-    if isinstance(obj, dict):
-        data = {}
-        for (k, v) in obj.items():
-            data[k] = to_dict(v, classkey)
-        return data
-    elif hasattr(obj, "_ast"):
-        return to_dict(obj._ast())
-    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-        return [to_dict(v, classkey) for v in obj]
-    elif hasattr(obj, "__dict__"):
-        data = dict([(key, to_dict(value, classkey)) 
-            for key, value in obj.__dict__.items() 
-            if not callable(value) and not key.startswith('_')])
-        if classkey is not None and hasattr(obj, "__class__"):
-            data[classkey] = obj.__class__.__name__
-        return data
-    else:
-        return obj
+    
+    class CodeTypes(Enum):
+        SUCCESS = "Success"
+        NOT_EXPANDED = "Not expanded"
+        
+    class ReasonTypes(Enum):
+        EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
+        REASON_NOT_APPLICABLE = "Reason not applicable"
+    
+    class ClassInfo(TypedDict):
+        spaceName: str
+        className: str
+        code: CodeTypes
+        reason: ReasonTypes
+    
+    class ExpandedAtInfo(ClassInfo):
+        expandedAt: str
+        
+    class ExpandedAtMetaInfo(TypedDict):
+        __meta__: ExpandedAtInfo
+    
+    expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
+    
+    def _to_dict(obj: Any, space_name: str) -> Dict:
+        
+        if isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                data[k] = _to_dict(v, f'{space_name}.{k}')
+            return data
+        
+        elif hasattr(obj, "_ast"):
+            return _to_dict(obj._ast(), space_name=space_name)
+        
+        elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+            idx = 0
+            list_resp = []
+            for v in obj:
+                list_resp.append(_to_dict(v, f'{space_name}[{idx}]'))
+                idx = idx + 1
+            return list_resp
+        
+        elif hasattr(obj, "__dict__"):
+            
+            if expanded_at.get(obj, None) is not None:
+                return expanded_at[obj]
+            
+            else:
+                class_name = None
+                if hasattr(obj, "__class__"):
+                    class_name = obj.__class__.__name__
+                    
+                expanded_at[obj] = ExpandedAtMetaInfo(
+                    __meta__=ExpandedAtInfo(
+                        spaceName=None,
+                        className=class_name,
+                        expandedAt=space_name,
+                        code=CodeTypes.NOT_EXPANDED.name,
+                        reason=ReasonTypes.EXPANDED_AT_OTHER_LOCATION.name
+                    )
+                )
+                
+                data = dict([
+                        (key, _to_dict(value, f'{space_name}.{key}')) 
+                        for key, value in obj.__dict__.items() 
+                        if not callable(value) 
+                        # and not key.startswith('__') 
+                        # and not key.startswith('_')
+                    ])
+                
+                if not ignore_meta_when_expanded:
+                    data["__meta__"]: ClassInfo = ClassInfo(
+                            spaceName=space_name,
+                            className=class_name,
+                            code=CodeTypes.SUCCESS.name,
+                            reason=ReasonTypes.REASON_NOT_APPLICABLE.name
+                        )
+                    
+                return data
+            
+        else:
+            return obj
+        
+    # class_name = "main"
+    resp_dict = _to_dict(obj, self_class_name)
+    return resp_dict
 
 
 class ExpectedRemainingTimeHandle:
