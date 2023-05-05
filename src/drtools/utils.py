@@ -17,6 +17,7 @@ from typing import (
     Tuple, Dict, List, Union, Optional,
     get_origin, get_args
 )
+import math
 
 
 def progress(
@@ -824,7 +825,7 @@ def class_to_dict(
     Parameters
     ----------
     obj : Any
-        The object to get value
+        The object to get value.
     expected_obj_type : Union[Type[TypedDict], List, Dict, str, float, int, bool]
         The expected type of object
 
@@ -836,7 +837,7 @@ def class_to_dict(
     Raises
     ------
     Exception
-        _description_
+        If object type is not supported.
     """
     if obj is None:
         result = None
@@ -860,3 +861,64 @@ def class_to_dict(
     else:
         raise Exception("Object Type not supported")
     return result
+
+
+def to_dict(
+    obj: Any, 
+    classkey: Any=None
+) -> Dict:
+    """Get Dict representation of instantiated object.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to get value
+    classkey : Any, optional
+        Key from data, by default None
+
+    Returns
+    -------
+    Dict
+        The Dict representation of object.
+    """
+    if isinstance(obj, dict):
+        data = {}
+        for (k, v) in obj.items():
+            data[k] = to_dict(v, classkey)
+        return data
+    elif hasattr(obj, "_ast"):
+        return to_dict(obj._ast())
+    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+        return [to_dict(v, classkey) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        data = dict([(key, to_dict(value, classkey)) 
+            for key, value in obj.__dict__.items() 
+            if not callable(value) and not key.startswith('_')])
+        if classkey is not None and hasattr(obj, "__class__"):
+            data[classkey] = obj.__class__.__name__
+        return data
+    else:
+        return obj
+
+
+class ExpectedRemainingTimeHandle:
+    """Handle expected remaining time on iterations or 
+    thread executions.
+    """
+    
+    def __init__(self, total: int) -> None:
+        self.total = total
+        self.started_at = datetime.now()
+        
+    def _total_seconds(self, executed_num: int):
+        return (datetime.now() - self.started_at).total_seconds()
+        
+    def _speed(self, executed_num: int):
+        return self._total_seconds(executed_num) / executed_num
+        
+    def seconds(self, executed_num: int) -> float:
+        speed = self._speed(executed_num)
+        return speed * (self.total - executed_num)
+    
+    def display_time(self, executed_num: int, granularity: int=2) -> str:
+        return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
