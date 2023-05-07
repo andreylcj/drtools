@@ -7,8 +7,7 @@ of any .py or .ipynb file
 
 import sys
 import logging
-from types import FunctionType
-from typing import Any, Union, TypedDict
+from typing import Any, Union, TypedDict, Dict, Type, Callable
 from drtools.file_manager import (
     split_path, create_directories_of_path
 )
@@ -16,6 +15,7 @@ from functools import wraps
 import logging
 from logging.handlers import RotatingFileHandler
 from inspect import getframeinfo, stack
+from datetime import datetime
 
 
 class CallerFilter(logging.Filter):
@@ -52,6 +52,14 @@ class FormatterOptions(TypedDict):
     IncludeDate: bool
     IncludeLoggerName: bool
     IncludeLevelName: bool
+    IncludeExecTime: bool
+
+LoggerName = str
+class LogInfo(TypedDict):
+    log: Type
+    log_handler: Type
+    
+__drtools_loggers__: Dict[LoggerName, LogInfo] = {}
 
 
 class Log:
@@ -95,6 +103,10 @@ class Log:
         If True, log file path will be complete
         If False, only will be displayed the name
         of the file, by default False
+    log_level : str, optional
+        Log level, by default 'DEBUG'
+    formatter_options : FormatterOptions, optional
+        Formatter options on logs
     """
 
     def __init__(
@@ -106,15 +118,15 @@ class Log:
         default_start: bool=True,
         full_file_path_log: bool=False,
         log_level: str='DEBUG',
-        formatter_options: FormatterOptions=FormatterOptions({
-            'IncludeThreadName': True,
-            'IncludeFileName': True,
-            'IncludeDate': True,
-            'IncludeLoggerName': True,
-            'IncludeLevelName': True,
-        }),
-        # deprecated 
-        log_as_print: bool=False
+        formatter_options: FormatterOptions=FormatterOptions(
+            IncludeThreadName=True,
+            IncludeFileName=True,
+            IncludeDate=True,
+            IncludeLoggerName=True,
+            IncludeLevelName=True,
+            IncludeExecTime=False,
+        ),
+        **kwargs
     ) -> None:
         self.path = path
         self.max_bytes = max_bytes
@@ -126,28 +138,13 @@ class Log:
         self.formatter_options = formatter_options
         self.log_level = {'DEBUG': 10, 'INFO': 20, 'WARNING': 30, 'ERROR': 40, 'CRITICAL': 50}[self.log_level]        
         self.original_verbosity = self.log_level
+        self.started_at = datetime.now()
+        self.updated_at = None
         self._construct_logger()
         if default_start:
             self.info('!*************** START ***************!')
 
-    def _construct_logger(
-        self,
-    ):
-        self.LOGGER = logging.getLogger(self.name)
-        if self.LOGGER.hasHandlers():
-            self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs        
-        if self.path is not None:
-            create_directories_of_path(self.path)
-            log_handler = RotatingFileHandler(
-                self.path, 
-                mode='a', 
-                maxBytes=self.max_bytes,
-                backupCount=self.backup_count, 
-                encoding=None, 
-                delay=0
-            )
-        else:
-            log_handler = logging.StreamHandler(sys.stdout)
+    def _construct_formatter(self):
         formatter_text = ''
         accept_conditions = [True]
         if self.formatter_options.get('IncludeThreadName', None) in accept_conditions:
@@ -161,12 +158,66 @@ class Log:
         if self.formatter_options.get('IncludeLevelName', None) in accept_conditions:
             formatter_text = formatter_text + '[%(levelname)8s] '        
         formatter = logging.Formatter(formatter_text + '%(message)s', datefmt='%d-%m-%Y %H:%M:%S')
-        log_handler.setFormatter(formatter)
-        self.LOGGER.addHandler(log_handler)
+        return formatter
+
+    def _construct_logger(
+        self,
+    ):
+        global __drtools_loggers__
+        
         # Here we add the Filter, think of it as a context
         self._filter = CallerFilter()
-        self.LOGGER.addFilter(self._filter)
-        self.LOGGER.setLevel(self.log_level)
+        
+        # construct formatter
+        formatter = self._construct_formatter()
+    
+        if __drtools_loggers__.get(self.name, None) is not None:
+            self.LOGGER = __drtools_loggers__[self.name]['log']
+            log_handler = __drtools_loggers__[self.name]['log_handler']
+            formatter = self._construct_formatter()
+            log_handler.setFormatter(formatter)
+            self.LOGGER.setLevel(self.log_level)
+    
+        else:
+        
+            self.LOGGER = logging.getLogger(self.name)
+            if self.LOGGER.hasHandlers():
+                self.LOGGER.handlers.clear() # Clear the handlers to avoid double logs        
+            if self.path is not None:
+                create_directories_of_path(self.path)
+                log_handler = RotatingFileHandler(
+                    self.path, 
+                    mode='a', 
+                    maxBytes=self.max_bytes,
+                    backupCount=self.backup_count, 
+                    encoding=None, 
+                    delay=0
+                )
+            else:
+                log_handler = logging.StreamHandler(sys.stdout)
+            # formatter_text = ''
+            # accept_conditions = [True]
+            # if self.formatter_options.get('IncludeThreadName', None) in accept_conditions:
+            #     formatter_text = '[%(threadName)-14s] '
+            # if self.formatter_options.get('IncludeFileName', None) in accept_conditions:
+            #     formatter_text = formatter_text + '[%(file)-20s] '
+            # if self.formatter_options.get('IncludeDate', None) in accept_conditions:
+            #     formatter_text = formatter_text + '[%(asctime)s.%(msecs)03d] '
+            # if self.formatter_options.get('IncludeLoggerName', None) in accept_conditions:
+            #     formatter_text = formatter_text + '[%(name)-12s] '
+            # if self.formatter_options.get('IncludeLevelName', None) in accept_conditions:
+            #     formatter_text = formatter_text + '[%(levelname)8s] '        
+            # formatter = logging.Formatter(formatter_text + '%(message)s', datefmt='%d-%m-%Y %H:%M:%S')
+            # formatter = self._construct_formatter()
+            log_handler.setFormatter(formatter)
+            self.LOGGER.addHandler(log_handler)
+            self.LOGGER.addFilter(self._filter)
+            self.LOGGER.setLevel(self.log_level)
+                    
+            __drtools_loggers__[self.name] = LogInfo(
+                log=self.LOGGER,
+                log_handler=log_handler,
+            )
 
     def set_verbosity(self, verbosity: bool=True) -> None:
         """Set verbosity of logs.
@@ -182,6 +233,25 @@ class Log:
         else:
             self.log_level = 999
         self.LOGGER.setLevel(self.log_level)
+        
+    def _exec_seconds(self) -> float:
+        response = None
+        if self.updated_at is None:
+            self.updated_at = datetime.now()
+            response = (self.updated_at - self.started_at).total_seconds()
+        else:
+            response = (datetime.now() - self.updated_at).total_seconds()
+            self.updated_at = datetime.now()
+        return response
+    
+    def _pexec_seconds(self) -> str:
+        return f'{round(self._exec_seconds(), 4)}s'
+    
+    def _insert_exec_time_on_message(self, msg: str) -> str:
+        exec_time = self._pexec_seconds().rjust(10, " ")
+        msg = f'[{exec_time}] {msg}'
+        return msg
+        
 
     def reset_verbosity(self) -> None:
         """Turn verbosity as initial state.
@@ -198,6 +268,8 @@ class Log:
         msg : any
             The message that will be logged
         """
+        if self.formatter_options.get('IncludeExecTime', None) is True:
+            msg = self._insert_exec_time_on_message(msg)
         self.LOGGER.debug(msg)
 
     @caller_reader
@@ -209,6 +281,8 @@ class Log:
         msg : any
             The message that will be logged
         """
+        if self.formatter_options.get('IncludeExecTime', None) is True:
+            msg = self._insert_exec_time_on_message(msg)
         self.LOGGER.info(msg)
         
     @caller_reader
@@ -220,6 +294,8 @@ class Log:
         msg : any
             The message that will be logged
         """
+        if self.formatter_options.get('IncludeExecTime', None) is True:
+            msg = self._insert_exec_time_on_message(msg)
         self.LOGGER.warning(msg)
 
     @caller_reader
@@ -231,6 +307,8 @@ class Log:
         msg : any
             The message that will be logged
         """
+        if self.formatter_options.get('IncludeExecTime', None) is True:
+            msg = self._insert_exec_time_on_message(msg)
         self.LOGGER.error(msg)
         
     @caller_reader
@@ -242,13 +320,15 @@ class Log:
         msg : any
             The message that will be logged
         """
+        if self.formatter_options.get('IncludeExecTime', None) is True:
+            msg = self._insert_exec_time_on_message(msg)
         self.LOGGER.critical(msg)
     
 
 def function_name_start_and_end(
-    func: FunctionType,
+    func: Callable,
     logger: Log
-) -> FunctionType:
+) -> Callable:
     """Log name of function.
     
     Logs the name of function on start and end of execution.
