@@ -939,42 +939,13 @@ def to_dict(
             for (k, v) in obj.items():
                 item_name_space = f'{name_space}.{k}'
                 item_append = _to_dict(v, item_name_space)
-                # if k in ignore_attr:
-                #     item_append = {}
-                #     item_append['__meta__'] = ClassInfo(
-                #             nameSpace=item_name_space,
-                #             className=class_name,
-                #             code=CodeTypes.IGNORED.name,
-                #             reason=ReasonTypes.IGNORE_ATTRIBUTE.name
-                #         )
                 data[k] = item_append
             return data
         
         elif hasattr(obj, "_ast"):
             return _to_dict(obj._ast(), name_space=name_space)
         
-        elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-            attr_name = name_space.split(".")[-1]
-            list_resp = None
-                
-            # if attr_name in ignore_attr:
-            #     list_resp = {}
-            #     list_resp['__meta__'] = ClassInfo(
-            #             nameSpace=name_space,
-            #             className=attr_name,
-            #             code=CodeTypes.IGNORED.name,
-            #             reason=ReasonTypes.IGNORE_ATTRIBUTE.name
-            #         )
-                
-            # else:
-            #     idx = 0
-            #     list_resp = []
-            #     for v in obj:
-            #         item_name_space = f'{name_space}[{idx}]'
-            #         item_append = _to_dict(v, item_name_space)
-            #         list_resp.append(item_append)
-            #         idx = idx + 1
-            
+        elif hasattr(obj, "__iter__") and not isinstance(obj, str):       
             idx = 0
             list_resp = []
             for v in obj:
@@ -1006,43 +977,8 @@ def to_dict(
                 )
                 
                 attr_name = name_space.split(".")[-1]
-                
-                # if name_space in ignore_abs_name_spaces:
-                #     data = {}
-                #     data["__meta__"]: ClassInfo = ClassInfo(
-                #             nameSpace=name_space,
-                #             className=class_name,
-                #             code=CodeTypes.IGNORED.name,
-                #             reason=ReasonTypes.IGNORE_ABS_NAME_SPACE.name
-                #         )
-                    
-                # elif attr_name in ignore_attr:
-                #     data = {}
-                #     data["__meta__"]: ClassInfo = ClassInfo(
-                #             nameSpace=name_space,
-                #             className=class_name,
-                #             code=CodeTypes.IGNORED.name,
-                #             reason=ReasonTypes.IGNORE_ATTRIBUTE.name
-                #         )
-                    
-                # else:
-                #     data = dict([
-                #             (key, _to_dict(value, f'{name_space}.{key}')) 
-                #             for key, value in obj.__dict__.items() 
-                #             if not callable(value) 
-                #             # and not key.startswith('__') 
-                #             # and not key.startswith('_')
-                #         ])
-                #     if not ignore_meta_when_expanded:
-                #         data["__meta__"]: ClassInfo = ClassInfo(
-                #                 nameSpace=name_space,
-                #                 className=class_name,
-                #                 code=CodeTypes.SUCCESS.name,
-                #                 reason=ReasonTypes.REASON_NOT_APPLICABLE.name
-                #             )
 
                 get_info_from_keys = list(obj.__dict__.keys())
-                # dict_keys = list(obj.__dict__.keys())
                 for key_dir in obj.__dir__():
                     if key_dir not in get_info_from_keys \
                     and not key_dir.startswith('__') \
@@ -1057,9 +993,6 @@ def to_dict(
                             _to_dict(getattr(obj, key), f'{name_space}.{key}')
                         ) 
                         for key in get_info_from_keys
-                        # if not callable(value) 
-                        # and not key.startswith('__') 
-                        # and not key.startswith('_')
                     ])
                 
                 # data = dict([
@@ -1081,20 +1014,8 @@ def to_dict(
                 return data
             
         else:
-            # attr_name = name_space.split(".")[-1]            
-            # if attr_name in ignore_attr:
-            #     resp_obj = {}
-            #     resp_obj['__meta__'] = ClassInfo(
-            #             nameSpace=name_space,
-            #             className=attr_name,
-            #             code=CodeTypes.IGNORED.name,
-            #             reason=ReasonTypes.IGNORE_ATTRIBUTE.name
-            #         )
-            # else:
-            #     resp_obj = obj
             return obj
-        
-    # class_name = "main"
+    
     resp_dict = _to_dict(obj, self_class_name)
     return resp_dict
 
