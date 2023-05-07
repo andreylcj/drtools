@@ -16,6 +16,81 @@ import pandas as pd
 import os
 import joblib
 import pyarrow.parquet as pq
+from enum import Enum
+from drtools.logs import FormatterOptions, Log
+from drtools.utils import ExpectedRemainingTimeHandle
+
+
+class FileType(Enum):
+    CSV = ".csv"
+    JSON = ".json"
+
+
+def concat_dir(
+    dir: str, 
+    out_path: str, 
+    verbose: int=100, 
+    file_type: FileType=FileType.CSV,
+    LOGGER: Log=Log(
+        formatter_options=FormatterOptions(
+            IncludeThreadName=True,
+            IncludeDate=True,
+            IncludeLevelName=True,
+        ),
+        default_start=False
+    ),
+    ignore_error_logs: bool=True,
+):
+    """Concat all files from directory to single file
+
+    Parameters
+    ----------
+    dir : str
+        The directory path containing files.
+    out_path : str
+        Path so write output file.
+    verbose : int, optional
+        Verbose num, by default 100
+    file_type : FileType, optional
+        Type of files on directory, by default FileType.CSV
+    LOGGER : Log, optional
+        Logger instance, by default Log( formatter_options=FormatterOptions( IncludeThreadName=True, IncludeDate=True, IncludeLevelName=True, ), default_start=False )
+    ignore_error_logs : bool, optional
+        If True, all error logs when writting and skipping header 
+        from files will be ignored, by default True
+
+    Raises
+    ------
+    Exception
+        If the file_type is not supported.
+    """
+    all_paths = list_path_of_all_files_inside_directory(dir)
+    expected_remaining_time = ExpectedRemainingTimeHandle(total=len(all_paths))
+    insert_header = True
+    count = 0
+    total_paths_len = len(all_paths)
+    LOGGER.info('Start concatenating...')
+    if file_type is FileType.CSV:
+        with open(out_path, 'w') as f:
+            for path in all_paths:
+                count += 1            
+                if count % verbose == 0:
+                    LOGGER.debug(f'({(count+1):,}/{total_paths_len:,}) Expected remaining time: {expected_remaining_time.display_time(count-1)}')
+                with open(path, 'r') as f1:
+                    try:
+                        if not insert_header:
+                            next(f1)
+                        insert_header = False
+                        for line in f1:
+                            f.write(line)
+                    except Exception as exc:
+                        if not ignore_error_logs:
+                            LOGGER.error(f'Error {exc} on {path}')
+    elif file_type is FileType.JSON:
+        raise Exception(f"Not implemented.")
+    else:
+        raise Exception(f"File type {file_type} not supported.")
+    LOGGER.info('Start concatenating... Done!')
 
 
 def save_df(

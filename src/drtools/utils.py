@@ -17,6 +17,8 @@ from typing import (
     Tuple, Dict, List, Union, Optional,
     get_origin, get_args
 )
+import math
+from enum import Enum
 
 
 def progress(
@@ -824,7 +826,7 @@ def class_to_dict(
     Parameters
     ----------
     obj : Any
-        The object to get value
+        The object to get value.
     expected_obj_type : Union[Type[TypedDict], List, Dict, str, float, int, bool]
         The expected type of object
 
@@ -836,7 +838,7 @@ def class_to_dict(
     Raises
     ------
     Exception
-        _description_
+        If object type is not supported.
     """
     if obj is None:
         result = None
@@ -860,3 +862,182 @@ def class_to_dict(
     else:
         raise Exception("Object Type not supported")
     return result
+
+
+def to_dict(
+    obj: Any,
+    ignore_meta_when_expanded: bool=True,
+    self_class_name: str="self",
+    ignore_attr: List[str]=[],
+    ignore_abs_name_spaces: List[str]=[],
+) -> Dict:
+    """Get Dict representation of instantiated object.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to get value
+
+    Returns
+    -------
+    Dict
+        The Dict representation of object.
+    """
+    
+    class CodeTypes(Enum):
+        SUCCESS = "Success"
+        IGNORED = "Ignored"
+        NOT_EXPANDED = "Not expanded"
+        
+    class ReasonTypes(Enum):
+        EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
+        IGNORE_ABS_NAME_SPACE = "Ignore absolute name space"
+        IGNORE_ATTRIBUTE = "Ignore attribute"
+        IGNORE_CLASS = "Ignore class"
+        REASON_NOT_APPLICABLE = "Reason not applicable"
+    
+    class ClassInfo(TypedDict):
+        nameSpace: str
+        className: str
+        code: CodeTypes
+        reason: ReasonTypes
+    
+    class ExpandedAtInfo(ClassInfo):
+        expandedAt: str
+        
+    class ExpandedAtMetaInfo(TypedDict):
+        __meta__: ExpandedAtInfo
+    
+    expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
+    
+    def _to_dict(obj: Any, name_space: str) -> Dict:
+        
+        attr_name = name_space.split(".")[-1]
+        
+        if name_space in ignore_abs_name_spaces:
+            resp = {}
+            resp['__meta__'] = ClassInfo(
+                    nameSpace=name_space,
+                    className=attr_name,
+                    code=CodeTypes.IGNORED.name,
+                    reason=ReasonTypes.IGNORE_ABS_NAME_SPACE.name
+                )
+            return resp
+        
+        elif attr_name in ignore_attr:
+            resp = {}
+            resp['__meta__'] = ClassInfo(
+                    nameSpace=name_space,
+                    className=attr_name,
+                    code=CodeTypes.IGNORED.name,
+                    reason=ReasonTypes.IGNORE_ATTRIBUTE.name
+                )
+            return resp
+            
+        if isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                item_name_space = f'{name_space}.{k}'
+                item_append = _to_dict(v, item_name_space)
+                data[k] = item_append
+            return data
+        
+        elif hasattr(obj, "_ast"):
+            return _to_dict(obj._ast(), name_space=name_space)
+        
+        elif hasattr(obj, "__iter__") and not isinstance(obj, str):       
+            idx = 0
+            list_resp = []
+            for v in obj:
+                item_name_space = f'{name_space}[{idx}]'
+                item_append = _to_dict(v, item_name_space)
+                list_resp.append(item_append)
+                idx = idx + 1
+                    
+            return list_resp
+        
+        elif hasattr(obj, "__dict__"):
+            
+            if expanded_at.get(obj, None) is not None:
+                return expanded_at[obj]
+            
+            else:
+                class_name = None
+                if hasattr(obj, "__class__"):
+                    class_name = obj.__class__.__name__
+                    
+                expanded_at[obj] = ExpandedAtMetaInfo(
+                    __meta__=ExpandedAtInfo(
+                        nameSpace=None,
+                        className=class_name,
+                        expandedAt=name_space,
+                        code=CodeTypes.NOT_EXPANDED.name,
+                        reason=ReasonTypes.EXPANDED_AT_OTHER_LOCATION.name
+                    )
+                )
+                
+                attr_name = name_space.split(".")[-1]
+
+                get_info_from_keys = list(obj.__dict__.keys())
+                for key_dir in obj.__dir__():
+                    if key_dir not in get_info_from_keys \
+                    and not key_dir.startswith('__') \
+                    and not key_dir.endswith('__') \
+                    and not callable(getattr(obj, key_dir)) \
+                    and getattr(obj, key_dir) is not None:
+                        get_info_from_keys.append(key_dir)
+                
+                data = dict([
+                        (
+                            key, 
+                            _to_dict(getattr(obj, key), f'{name_space}.{key}')
+                        ) 
+                        for key in get_info_from_keys
+                    ])
+                
+                # data = dict([
+                #         (key, _to_dict(value, f'{name_space}.{key}')) 
+                #         for key, value in obj.__dict__.items() 
+                #         if not callable(value) 
+                #         # and not key.startswith('__') 
+                #         # and not key.startswith('_')
+                #     ])
+                
+                if not ignore_meta_when_expanded:
+                    data["__meta__"]: ClassInfo = ClassInfo(
+                            nameSpace=name_space,
+                            className=class_name,
+                            code=CodeTypes.SUCCESS.name,
+                            reason=ReasonTypes.REASON_NOT_APPLICABLE.name
+                        )
+                    
+                return data
+            
+        else:
+            return obj
+    
+    resp_dict = _to_dict(obj, self_class_name)
+    return resp_dict
+
+
+class ExpectedRemainingTimeHandle:
+    """Handle expected remaining time on iterations or 
+    thread executions.
+    """
+    
+    def __init__(self, total: int) -> None:
+        self.total = total
+        self.started_at = datetime.now()
+        
+    def _total_seconds(self, executed_num: int):
+        return (datetime.now() - self.started_at).total_seconds()
+        
+    def _speed(self, executed_num: int):
+        return self._total_seconds(executed_num) / executed_num
+        
+    def seconds(self, executed_num: int) -> float:
+        speed = self._speed(executed_num)
+        return speed * (self.total - executed_num)
+    
+    def display_time(self, executed_num: int, granularity: int=2) -> str:
+        return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
