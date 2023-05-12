@@ -5,11 +5,14 @@ classes and other stuff.
 """
 
 
-from typing import Dict, List, Union, Optional, TypedDict
+from typing import Dict, List, Union, Optional, TypedDict, Callable
 import numpy as np
 from pandas import DataFrame
+import pandas as pd
 from drtools.utils import list_ops
 from drtools.logs import Log
+import ast
+from drtools.data_science.features_handle import FeatureJSON
 
 
 ### Comparison Operators
@@ -342,3 +345,212 @@ class FindOnData:
             return self._find_on_numpy()
         elif self.DataType == DataFrameDataType:
             return self._find_on_dataframe()
+
+
+class TypeColumm(TypedDict):
+    name: str
+    typeraze: Callable
+
+
+String = ['varchar', 'str']
+Time = ['timestamp', 'datetime']
+Int = ['int']
+Float = ['float']
+JSONB = ['JSONB', 'JSON']
+
+
+def typeraze(
+    dataframe: DataFrame,
+    features: List[FeatureJSON],
+    dtypes: List[str]=None,
+    ignore_dtypes: List[str]=[],
+    custom_treatment: List[TypeColumm]=[],
+    utc: Union[bool, None]=None,
+    to_numeric: bool=False,
+    LOGGER: Log=None,
+    **kwargs
+) -> DataFrame:
+    """Type database columns.
+
+    Parameters
+    ----------
+    dataframe : DataFrame
+        The DataFrame contining the data to be typed.
+    features : List[SimpleFeature]
+        The features to be typed.
+    dtypes : List[str], optional
+        Specify Dtypes to be handled, by default None
+    ignore_dtypes : List[str], optional
+        Ignore Dtypes when typing data, by default []
+    custom_treatment : List[TypeColumm], optional
+        If some colum needs to have a custom treatment 
+        on data, the function to treat the column 
+        can be specified here, by default []
+    utc : Union[bool, None], optional
+        If True, apply pd.to_datetime with utc=True, 
+        if False, apply with False, by default None.
+    to_numeric : bool, optional
+        If True, apply pd.to_numeric before type, 
+        if False, do not apply, by default False
+    LOGGER : Log, optional
+        The Log to verbose, by default None
+
+    Returns
+    -------
+    DataFrame
+        The typed DataFrame
+
+    Raises
+    ------
+    Exception
+        If Dtypes of column is not supported.
+    Exception
+        When some error occurs when typing some column.
+    """
+        
+    df = dataframe.copy()
+
+    AllDtypes = String + Time + Int + Float + JSONB
+    
+    if dtypes is None:
+        dtypes = AllDtypes
+        
+    # filter features to process
+    string_features_name = []
+    time_features_name = []
+    int_features_name = []
+    float_features_name = []
+    JSONB_features_name = []
+    real_custom_treatment = []
+    
+    for feature in features:
+        feature_type = feature['type']
+        feature_name = feature['name']
+        
+        is_custom_treatment = False
+        for custom_treat_col in custom_treatment:
+            if feature_name == custom_treat_col['name']:
+                real_custom_treatment.append(custom_treat_col)
+                is_custom_treatment = True
+                break            
+        if is_custom_treatment:
+            continue
+        
+        if feature_type in dtypes \
+        and feature_type not in ignore_dtypes:
+            
+            if feature_type in String:
+                string_features_name.append(feature_name)
+                
+            elif feature_type in Time:
+                time_features_name.append(feature_name)
+                
+            elif feature_type in Int:
+                int_features_name.append(feature_name)
+                
+            elif feature_type in Float:
+                float_features_name.append(feature_name)
+             
+            elif feature_type in JSONB:
+                JSONB_features_name.append(feature_name)
+                
+            elif feature_type not in AllDtypes:
+                raise Exception(f'Invalid type {feature_type} on column {feature_name}')
+        
+    
+    LOGGER.debug(f'Typing {len(string_features_name)} cols as String: {string_features_name}...')        
+    archive_indexes = df[string_features_name].index
+    temp_df = pd.DataFrame(
+            np.where(
+                pd.isnull(df[string_features_name]), 
+                df[string_features_name], 
+                df[string_features_name].astype(str)
+            ),
+            columns=string_features_name
+        ).set_index(archive_indexes)
+    for col in string_features_name:
+        del df[col]
+    df = pd.concat([df, temp_df], axis=1)
+    LOGGER.debug(f'Typing {len(string_features_name)} cols as String... Done!')
+        
+    
+    LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime: {time_features_name}...')       
+    df[time_features_name] = df[time_features_name].apply(pd.to_datetime, errors='coerce', utc=utc)
+    LOGGER.debug(f'Typing {len(time_features_name)} cols as Datetime... Done!')
+        
+    
+    LOGGER.debug(f'Typing {len(int_features_name)} cols as Int64: {int_features_name}...') 
+    if to_numeric:
+        df[int_features_name] = df[int_features_name].apply(pd.to_numeric, errors='coerce')
+    
+    try:
+        temp_df = df[int_features_name].astype('Int64')
+    except:
+        df[int_features_name] = df[int_features_name].apply(pd.to_numeric, errors='coerce')
+        temp_df = df[int_features_name].astype('Int64')
+        
+    for col in int_features_name:
+        del df[col]
+    df = pd.concat([df, temp_df], axis=1)
+    del temp_df
+    LOGGER.debug(f'Typing {len(int_features_name)} cols as Int64... Done!')
+        
+        
+    LOGGER.debug(f'Typing {len(float_features_name)} cols as Float: {float_features_name}...')
+        
+    if to_numeric:
+        df[float_features_name] = df[float_features_name].apply(pd.to_numeric, errors='coerce')
+        
+    try:
+        temp_df = df[float_features_name].astype(float)
+    except:
+        df[float_features_name] = df[float_features_name].apply(pd.to_numeric, errors='coerce')
+        temp_df = df[float_features_name].astype(float)
+        
+    for col in float_features_name:
+        del df[col]
+    df = pd.concat([df, temp_df], axis=1)
+    del temp_df
+    LOGGER.debug(f'Typing {len(float_features_name)} cols as Float... Done!')
+        
+        
+    LOGGER.debug(f'Typing {len(JSONB_features_name)} cols as JSONB: {JSONB_features_name}...') 
+     
+    for col in JSONB_features_name:
+            
+        LOGGER.debug(f'Typing col {col}...') 
+                
+        is_nan_indexes = df[df[col].isna()].index
+        not_nan_indexes = df[df[col].notna()].index
+        df_backup = df.copy()
+        try:
+            df[col] = df[col].astype(str)
+            df.loc[df.index.isin(not_nan_indexes), col] \
+                = df.loc[df.index.isin(not_nan_indexes), col] \
+                    .apply(lambda x: ast.literal_eval(x))
+        except:
+            df = df_backup
+            df.loc[df.index.isin(not_nan_indexes), col] \
+                = df.loc[df.index.isin(not_nan_indexes), col] \
+                    .apply(lambda x: ast.literal_eval(x) if type(x) == str else x)
+            
+        df.loc[df.index.isin(is_nan_indexes), col] = np.nan
+            
+        LOGGER.debug(f'Typing col {col}... Done!') 
+        
+    LOGGER.debug(f'Typing {len(JSONB_features_name)} cols as JSONB... Done!') 
+    
+    
+    real_custom_treatment_names = [x['name'] for x in real_custom_treatment]
+    LOGGER.debug(f'Handling custom treatment on {len(real_custom_treatment)} cols: {real_custom_treatment_names}...') 
+    
+    for custom_treat_col in real_custom_treatment:
+        col = custom_treat_col['name']
+        LOGGER.debug(f'Custom treatment on col {col}...') 
+        custom_treat_typeraze = custom_treat_col['typeraze']
+        df[col] = custom_treat_typeraze(df, col)
+        LOGGER.debug(f'Custom treatment on col {col}... Done!') 
+        
+    LOGGER.debug(f'Handling custom treatment on {len(real_custom_treatment)} cols... Done!') 
+    
+    return df
