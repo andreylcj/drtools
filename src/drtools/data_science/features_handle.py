@@ -11,7 +11,7 @@ import pandas as pd
 from typing import List, Union, Dict, TypedDict, Tuple
 from drtools.utils import list_ops
 from drtools.logs import Log, FormatterOptions
-from drtools.data_science.model_handling import Model
+# from drtools.data_science.model_handling import Model
 from drtools.data_science.general import typeraze
 from enum import Enum
 
@@ -181,7 +181,7 @@ Numerical = 'numerical'
 
 class FeatureJSON(TypedDict):
     name: str
-    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp] 
+    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]
 
 
 class ExtendedFeatureJSON(FeatureJSON):
@@ -191,12 +191,19 @@ class ExtendedFeatureJSON(FeatureJSON):
 
 
 class Feature:
-    def __init__(self, name: str, type_: FeatureType) -> None:
+    def __init__(self, 
+        name: str, 
+        type: FeatureType,
+        **kwargs,
+    ) -> None:
         self.name = name
-        self.type = type_
-        
-    def as_dict(self) -> FeatureJSON:
-        return {'name': self.name, 'type': self.type.value}
+        self.type = type
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    
+    @property
+    def info(self) -> Dict:
+        return self.__dict__
 
 
 class Features:
@@ -209,8 +216,9 @@ class Features:
     def append_features(self, features: List[Feature]) -> None:
         self.features = self.features + features
     
-    def as_dict(self) -> List[FeatureJSON]:
-        return [feature.as_dict() for feature in self.features]
+    @property
+    def info(self) -> List[Dict]:
+        return [feature.info for feature in self.features]
     
 
 def construct_features(
@@ -240,7 +248,7 @@ def construct_features(
             if type_must_have_features:
                 dataframe = typeraze(
                     dataframe, 
-                    must_have_features.as_dict(), 
+                    must_have_features.info, 
                     LOGGER=self.LOGGER
                 )
             
@@ -258,7 +266,7 @@ def construct_features(
             if type_insert_features:
                 response_dataframe = typeraze(
                     response_dataframe, 
-                    insert_features.as_dict(), 
+                    insert_features.info, 
                     LOGGER=self.LOGGER
                 )
             
@@ -272,7 +280,7 @@ class BaseFeatureConstructor:
     def __init__(
         self, 
         name: str=None,
-        model: Model=None,
+        model=None, # drtools.data_science.model_handling.Model
         LOGGER: Log=Log(
             name="FeatureConstructor",
             formatter_options=FormatterOptions(
@@ -288,7 +296,10 @@ class BaseFeatureConstructor:
         self.model = model
         self.LOGGER = LOGGER
         
-    def set_model(self, model: Model) -> None:
+    def set_model(
+        self, 
+        model # drtools.data_science.model_handling.Model
+    ) -> None:
         self.model = model
         
     def set_logger(self, LOGGER: Log) -> None:
@@ -302,7 +313,7 @@ class BaseFeatureConstructor:
 class BaseTransformer:
     def __init__(
         self,
-        model: Model,
+        model, # drtools.data_science.model_handling.Model
         LOGGER: Log=Log(
             name="Transformer",
             formatter_options=FormatterOptions(

@@ -12,7 +12,7 @@ import pandas as pd
 from drtools.utils import list_ops
 from drtools.logs import Log
 import ast
-from drtools.data_science.features_handle import FeatureJSON
+# from drtools.data_science.features_handle import FeatureJSON
 
 
 ### Comparison Operators
@@ -361,7 +361,7 @@ JSONB = ['JSONB', 'JSON']
 
 def typeraze(
     dataframe: DataFrame,
-    features: List[FeatureJSON],
+    features: List, # List[FeatureJSON]
     dtypes: List[str]=None,
     ignore_dtypes: List[str]=[],
     custom_treatment: List[TypeColumm]=[],

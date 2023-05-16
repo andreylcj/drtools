@@ -14,23 +14,23 @@ from drtools.utils import (
     list_ops
 )
 from drtools.data_science.features_handle import (
-    ExtendedFeatureJSON, Categorical, Features
+    ExtendedFeatureJSON, Categorical, Features, Feature
 )
 from enum import Enum
 
 
-class ModelCatalogueSingle(TypedDict):
-    id: int
-    created_at: datetime
-    updated_at: datetime
-    name: str
-    version: str
-    algorithm: str
-    algorithm_infrastructure: Any
-    description: str
-    rules: str
-    input_features: List[ExtendedFeatureJSON]
-    output_features: List[ExtendedFeatureJSON]
+# class ModelCatalogueSingle(TypedDict):
+#     id: int
+#     created_at: datetime
+#     updated_at: datetime
+#     name: str
+#     version: str
+#     algorithm: str
+#     algorithm_infrastructure: Any
+#     description: str
+#     rules: str
+#     input_features: List[ExtendedFeatureJSON]
+#     output_features: List[ExtendedFeatureJSON]
 
 
 class Algorithm(Enum):
@@ -51,8 +51,7 @@ class BaseModel:
     - list_input_features_name()
     - list_extra_features_name()
     - list_output_features_name()
-    - get_model_name()
-    - cols_correct_order()
+    - list_columns_correct_order()
     - load_model()
     - save_model()
     - train()
@@ -60,6 +59,38 @@ class BaseModel:
     """
     
     ALGORITHM: Algorithm = None
+    
+    @classmethod
+    def init_from_json(
+        cls, 
+        LOGGER: Log=None, 
+        chained_assignment_log: bool=False,
+        **kwargs, 
+    ):
+        base_model = cls(
+            name=kwargs.get('name', None),
+            version=kwargs.get('version', None),
+            algorithm_infrastructure=kwargs.get('algorithm_infrastructure', None),
+            description=kwargs.get('description', None),
+            rules=kwargs.get('rules', None),
+            input_features=Features([
+                Feature(**feature)
+                for feature in kwargs.get('input_features', [])
+            ]),
+            output_features=Features([
+                Feature(**feature)
+                for feature in kwargs.get('output_features', [])
+            ]),
+            extra_features=Features([
+                Feature(**feature)
+                for feature in kwargs.get('extra_features', [])
+            ]),
+            training_information=kwargs.get('training_information', None),
+            metrics=kwargs.get('metrics', None),
+            LOGGER=LOGGER,
+            chained_assignment_log=chained_assignment_log
+        )
+        return base_model
     
     def __init__(
         self,
@@ -71,6 +102,8 @@ class BaseModel:
         input_features: Features,
         output_features: Features,
         extra_features: Features,
+        training_information: Dict={},
+        metrics: List=[],
   		LOGGER: Log=None,
         chained_assignment_log: bool=False
     ) -> None:
@@ -95,8 +128,10 @@ class BaseModel:
         self.input_features = input_features
         self.output_features = output_features
         self.extra_features = extra_features
+        self.training_information = training_information
+        self.metrics = metrics
         self.LOGGER = Log(
-                name=f"Model-{self.ALGORITHM.pname}",
+                name=f"Model-{self.model_name}",
                 formatter_options=FormatterOptions(
                     IncludeDate=True,
                     IncludeLoggerName=True,
@@ -138,8 +173,8 @@ class BaseModel:
         """
         return self.output_features.list_features_name()
     
-    # @start_end_log('get_model_name')        
-    def get_model_name(self) -> str:
+    @property
+    def model_name(self) -> str:
         """Returns model name.
 
         Returns
@@ -150,8 +185,23 @@ class BaseModel:
         """
         return f'{self.name}-{self.version}'
     
+    @property
+    def info(self) -> Dict:
+        return {
+            'name': self.name,
+            'version': self.version,
+            'algorithm_infrastructure': self.algorithm_infrastructure,
+            'description': self.description,
+            'rules': self.rules,
+            'input_features': self.input_features.info,
+            'output_features': self.output_features.info,
+            'extra_features': self.extra_features.info,
+            'training_information': self.training_information,
+            'metrics': self.metrics,
+        }
+    
     # @start_end_log('cols_correct_order')        
-    def cols_correct_order(
+    def list_columns_correct_order(
         self
     ) -> List[str]:
         """Returns list of all cols of model, including 
