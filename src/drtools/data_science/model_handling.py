@@ -389,28 +389,28 @@ class LightGBM(BaseModel):
     ALGORITHM: Algorithm = Algorithm.LIGHTGBM
     
     def load_model(self, model_file_path: str, *args, **kwargs) -> Any:
-        self.LOGGER.info(f'Loading model {self.get_model_name()}...')  
+        self.LOGGER.info(f'Loading model {self.model_name}...')  
         import lightgbm as lgb
         model = lgb.Booster(model_file=model_file_path, *args, **kwargs)
-        self.LOGGER.info(f'Loading model {self.get_model_name()}... Done!')  
+        self.LOGGER.info(f'Loading model {self.model_name}... Done!')  
         return model
     
     def save_model(self, model_instance: Any, path: str, *args, **kwargs) -> None:
-        self.LOGGER.info(f'Saving model {self.get_model_name()}...')
+        self.LOGGER.info(f'Saving model {self.model_name}...')
         create_directories_of_path(path)
         model_instance.save_model(filename=path, *args, **kwargs)
-        self.LOGGER.info(f'Saving model {self.get_model_name()}... Done!')
+        self.LOGGER.info(f'Saving model {self.model_name}... Done!')
             
     def train(self, model_instance: Any, *args, **kwargs) -> Any:
-        self.LOGGER.info(f'Training model {self.get_model_name()}...')
+        self.LOGGER.info(f'Training model {self.model_name}...')
         import lightgbm as lgb
         model_instance = lgb.train(*args, **kwargs)
-        self.LOGGER.info(f'Training model {self.get_model_name()}... Done!')            
+        self.LOGGER.info(f'Training model {self.model_name}... Done!')            
         return model_instance
     
     def predict(self, model_file_path: str, X: Any, *args, **kwargs) -> Any: 
-        self.LOGGER.info(f'Predicting data for model {self.get_model_name()}...')  
+        self.LOGGER.info(f'Predicting data for model {self.model_name}...')  
         model_instance = self.load_model(model_file_path)
         y_pred = model_instance.predict(X, *args, **kwargs)
-        self.LOGGER.info(f'Predicting data for model {self.get_model_name()}... Done!')        
+        self.LOGGER.info(f'Predicting data for model {self.model_name}... Done!')        
         return y_pred
