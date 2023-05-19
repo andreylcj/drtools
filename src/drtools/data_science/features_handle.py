@@ -8,7 +8,12 @@ other stuff related to features from Machine Learn Model.
 from drtools.utils import list_ops
 from pandas import DataFrame
 import pandas as pd
-from typing import List, Union, Dict, TypedDict
+from typing import List, Union, Dict, TypedDict, Tuple
+from drtools.utils import list_ops
+from drtools.logs import Log, FormatterOptions
+# from drtools.data_science.model_handling import Model
+from drtools.data_science.general import typeraze
+from enum import Enum
 
 
 ColumnName = str
@@ -130,3 +135,198 @@ def one_hot_encoding(
             drop_self_col=drop_self_col,
         )
     return df
+
+
+class DataFrameMissingColumns(Exception):
+    def __init__(
+        self, 
+        missing_cols: List[str], 
+    ):
+        self.missing_cols = missing_cols
+        self.message = f"DataFrame has the following missing columns: {self.missing_cols}"
+        super().__init__(self.message)
+        
+        
+class DataFrameDiffLength(Exception):
+    def __init__(
+        self, 
+        expected: int, 
+        received: int, 
+    ):
+        self.expected = expected
+        self.received = received
+        self.message = f"DataFrames has different length. Expected: {self.expected} | Received: {self.received}"
+        super().__init__(self.message)
+        
+
+class FeatureType(Enum):
+    STR = "str"
+    INT = "int"
+    FLOAT = "float"
+    DATETIME = "datetime"
+    TIMESTAMP = "timestamp"
+
+
+Input = 'input'
+Output = 'output'
+VarChar = 'varchar'
+Str = 'str'
+Int = 'int'
+Float = 'float'
+Datetime = 'datetime'
+TimeStamp = 'timestamp'
+Categorical = 'categorical'
+Numerical = 'numerical'
+
+
+class FeatureJSON(TypedDict):
+    name: str
+    type: Union[VarChar, Str, Int, Float, Datetime, TimeStamp]
+
+
+class ExtendedFeatureJSON(FeatureJSON):
+    description: Union[Categorical, Numerical]
+    conditions: Dict
+    observation: str
+
+
+class Feature:
+    def __init__(self, 
+        name: str, 
+        type: FeatureType,
+        **kwargs,
+    ) -> None:
+        self.name = name
+        self.type = type
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    
+    @property
+    def info(self) -> Dict:
+        return self.__dict__
+
+
+class Features:
+    def __init__(self, features: List[Feature]=[]) -> None:
+        self.features = features
+        
+    def list_features_name(self) -> List[str]:
+        return [x.name for x in self.features]
+    
+    def append_features(self, features: List[Feature]) -> None:
+        self.features = self.features + features
+    
+    @property
+    def info(self) -> List[Dict]:
+        return [feature.info for feature in self.features]
+    
+
+def construct_features(
+    insert_features: Features,
+    must_have_features: Features=Features(),
+    type_must_have_features: bool=False,
+    type_insert_features: bool=False,
+    log_details: bool=True,
+) -> DataFrame:
+    """Decorator construct features and insert on DataFrame. The resulting 
+    DataFrame must have same length from the received DataFrame.
+    """
+    def decorator(f):
+        def wrapper(self, dataframe: DataFrame, *args, **kwargs):
+            receveid_shape = dataframe.shape
+            
+            insert_features_name = insert_features.list_features_name()
+            
+            must_have_features_name = must_have_features.list_features_name()
+            missing_cols = list_ops(must_have_features_name, dataframe)
+            if len(missing_cols) > 0:
+                raise DataFrameMissingColumns(missing_cols)
+            
+            if log_details:
+                self.LOGGER.info(f'Constructing {insert_features_name} from {must_have_features_name}')
+            
+            if type_must_have_features:
+                dataframe = typeraze(
+                    dataframe, 
+                    must_have_features.info, 
+                    LOGGER=self.LOGGER
+                )
+            
+            # execution
+            response_dataframe = f(self, dataframe, *args, **kwargs)
+            
+            # insert_features_name = insert_features.list_features_name()
+            missing_cols = list_ops(insert_features_name, response_dataframe)
+            if len(missing_cols) > 0:
+                raise DataFrameMissingColumns(missing_cols)
+            
+            if receveid_shape[0] != response_dataframe.shape[0]:
+                raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
+            
+            if type_insert_features:
+                response_dataframe = typeraze(
+                    response_dataframe, 
+                    insert_features.info, 
+                    LOGGER=self.LOGGER
+                )
+            
+            return response_dataframe
+        wrapper.__doc__ = f.__doc__
+        return wrapper
+    return decorator
+
+
+class BaseFeatureConstructor:
+    def __init__(
+        self, 
+        name: str=None,
+        model=None, # drtools.data_science.model_handling.Model
+        LOGGER: Log=Log(
+            name="FeatureConstructor",
+            formatter_options=FormatterOptions(
+                IncludeDate=True,
+                IncludeLoggerName=True,
+                IncludeLevelName=True,
+                IncludeExecTime=False,
+            ),
+            default_start=False
+        )
+    ) -> None:
+        self.name = name
+        self.model = model
+        self.LOGGER = LOGGER
+        
+    def set_model(
+        self, 
+        model # drtools.data_science.model_handling.Model
+    ) -> None:
+        self.model = model
+        
+    def set_logger(self, LOGGER: Log) -> None:
+        self.LOGGER = LOGGER
+        
+    @construct_features
+    def construct(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+        pass
+
+
+class BaseTransformer:
+    def __init__(
+        self,
+        model, # drtools.data_science.model_handling.Model
+        LOGGER: Log=Log(
+            name="Transformer",
+            formatter_options=FormatterOptions(
+                IncludeDate=True,
+                IncludeLoggerName=True,
+                IncludeLevelName=True,
+                IncludeExecTime=False,
+            ),
+            default_start=False
+        )
+    ) -> None:
+        self.model = model
+        self.LOGGER = LOGGER
+    
+    def apply(self, *args, **kwargs) -> Tuple:
+        pass

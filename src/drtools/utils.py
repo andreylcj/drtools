@@ -19,6 +19,7 @@ from typing import (
 )
 import math
 from enum import Enum
+from copy import deepcopy
 
 
 def progress(
@@ -1041,3 +1042,37 @@ class ExpectedRemainingTimeHandle:
     
     def display_time(self, executed_num: int, granularity: int=2) -> str:
         return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
+    
+    
+def get_dict_val(
+    data: Dict,
+    keys_depth: List[str],
+    default_val: Any=None
+) -> Any:
+    """Try get data from list of keys
+
+    Parameters
+    ----------
+    data : Dict
+        Dict data
+    keys_depth : List[str]
+        List of keys to find data
+    default_val : _type_, optional
+        If not find, return this value, by default None
+
+    Returns
+    -------
+    Any
+        Value from Dict
+    """
+    curr_data = None
+    for idx, k in enumerate(keys_depth):
+        if idx == 0:
+            d = data.get(k, None)
+        else:
+            d = curr_data.get(k, None)
+        if d is None:
+            return default_val
+        if idx < len(keys_depth) - 1:
+            curr_data = deepcopy(d)
+    return d
