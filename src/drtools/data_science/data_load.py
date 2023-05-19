@@ -22,8 +22,16 @@ from drtools.utils import ExpectedRemainingTimeHandle
 
 
 class FileType(Enum):
-    CSV = ".csv"
-    JSON = ".json"
+    CSV = "csv", ".csv"
+    JSON = "json", ".json"
+    
+    @property
+    def pname(self):
+        return self.value[0]
+    
+    @property
+    def extension(self):
+        return self.value[1]
 
 
 def concat_dir(
