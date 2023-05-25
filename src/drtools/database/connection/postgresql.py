@@ -13,6 +13,7 @@ import gzip
 from drtools.file_manager import path_exist, create_directories_of_path
 from drtools.logs import Log
 import logging
+from datetime import datetime
 
 
 FetchAll = 'fetch-all'
@@ -93,6 +94,7 @@ class Cursor:
     
     def close(self) -> None:
         self._cursor.close()
+        self._cursor = None
 
 
 class ConnectionConfig:
@@ -194,6 +196,9 @@ class Database:
         self.password = password
         self.connection_config = connection_config
         self._connection = None
+        self.executing = False
+        self.exec_details = []
+        self.started_at = datetime.now()
 
     def credentials_config(
         self,
@@ -221,9 +226,7 @@ class Database:
         if self.password is None:
             self.password = db.get('password', None)
 
-    def connect(
-        self,
-    ) -> None:
+    def connect(self) -> None:
         """ Connect to the PostgreSQL database server """
         self._connection = None
         try:
@@ -247,7 +250,11 @@ class Database:
             
         except (Exception, psycopg2.DatabaseError) as error:
             self.LOGGER.error(error)                
-                
+    
+    def refresh(self):
+        self.close()
+        self.connect()
+        
     def execute(
         self, 
         query: str, 
@@ -276,11 +283,17 @@ class Database:
         Tuple[List[str], List[Tuple]]
             Returns the Header and the Body data.
         """
-        self._connection = None
-        cursor = None
+        # self._connection = None
+        # cursor = None
+        self.executing = True
+        self.exec_started_at = datetime.now()
         try:
-            self.connect()
-            cursor = Cursor(connection=self._connection, fetch_mode=fetch_mode)
+            # self.connect()
+            cursor = Cursor(
+                connection=self._connection, 
+                fetch_mode=fetch_mode,
+                LOGGER=self.LOGGER
+            )
             if save_on is None:
                 cursor.execute(query, query_values)
                 response = cursor.fetch(size)
@@ -291,9 +304,16 @@ class Database:
         except (Exception, psycopg2.DatabaseError) as error:
             self.LOGGER.error(error)
         finally:
-            if cursor is not None:
-                cursor.close()
-            self.close()
+            cursor.close()
+        self.executing = False
+        self.exec_details.append({
+            'started_at': self.exec_started_at,
+            'finished_at': datetime.now(),
+        })
+        
+    @property
+    def execution_count(self) -> int:
+        return len(self.exec_details)
 
     def close(self) -> None:
         if self._connection is not None:
