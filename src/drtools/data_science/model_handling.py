@@ -35,7 +35,7 @@ from enum import Enum
 
 class Algorithm(Enum):
     LIGHTGBM = "LightGBM",
-    NN = "Neural Network",
+    NEURAL_NETWORK = "Neural Network",
     
     @property
     def pname(self):
@@ -414,3 +414,25 @@ class LightGBM(BaseModel):
         y_pred = model_instance.predict(X, *args, **kwargs)
         self.LOGGER.info(f'Predicting data for model {self.model_name}... Done!')        
         return y_pred
+    
+    
+class ModelHandler:
+    def __init__(self) -> None:
+        pass
+    
+    @classmethod
+    def smart_load_model(
+        cls,
+        model_definition: Dict,
+        LOGGER: Log=None, 
+        chained_assignment_log: bool=False,
+    ) -> BaseModel:
+        if model_definition['algorithm'] == Algorithm.LIGHTGBM.name:
+            return LightGBM.init_from_json(
+                LOGGER=LOGGER,
+                chained_assignment_log=chained_assignment_log,
+                **model_definition
+            )
+            
+        else:
+            raise Exception(f"Algorithm {model_definition['algorithm']} not supported.")
