@@ -7,7 +7,7 @@ with Python.
 
 
 from configparser import ConfigParser
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict
 import psycopg2
 import gzip
 from drtools.file_manager import path_exist, create_directories_of_path
@@ -185,6 +185,7 @@ class Database:
         port: int=None,
         user: str=None,
         password: str=None,
+        keepalive_kwargs: Dict={},
         connection_config: ConnectionConfig=ConnectionConfig(),
         LOGGER: Log=logging
     ) -> None:
@@ -194,11 +195,13 @@ class Database:
         self.port = port
         self.user = user
         self.password = password
+        self.keepalive_kwargs = keepalive_kwargs
         self.connection_config = connection_config
         self._connection = None
         self.executing = False
         self.exec_details = []
         self.started_at = datetime.now()
+        self.last_connection_at = None
 
     def credentials_config(
         self,
@@ -226,7 +229,7 @@ class Database:
         if self.password is None:
             self.password = db.get('password', None)
 
-    def connect(self) -> None:
+    def connect(self, keepalive_kwargs: Dict={}) -> None:
         """ Connect to the PostgreSQL database server """
         self._connection = None
         try:
@@ -242,10 +245,14 @@ class Database:
                 raise Exception("You must provice 'password' is required.")            
             
             params = {**params, **self.connection_config.__dict__}
+            real_keepalive_kwargs = keepalive_kwargs if keepalive_kwargs != {} \
+                else self.keepalive_kwargs 
+            params = {**params, **real_keepalive_kwargs}
             
             # connect to the PostgreSQL server
             self.LOGGER.info('Connecting to the PostgreSQL database...')
             self._connection = psycopg2.connect(**params)
+            self.last_connection_at = datetime.now()
             self.LOGGER.info('Successful connection!')
             
         except (Exception, psycopg2.DatabaseError) as error:
@@ -287,6 +294,7 @@ class Database:
         # cursor = None
         self.executing = True
         self.exec_started_at = datetime.now()
+        cursor = None
         try:
             # self.connect()
             cursor = Cursor(
@@ -304,7 +312,8 @@ class Database:
         except (Exception, psycopg2.DatabaseError) as error:
             self.LOGGER.error(error)
         finally:
-            cursor.close()
+            if cursor is not None:
+                cursor.close()
         self.executing = False
         self.exec_details.append({
             'started_at': self.exec_started_at,
