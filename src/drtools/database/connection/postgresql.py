@@ -229,7 +229,7 @@ class Database:
         if self.password is None:
             self.password = db.get('password', None)
 
-    def connect(self, keepalive_kwargs: Dict={}) -> None:
+    def connect(self, keepalive_kwargs: Dict={}, connect_kwargs: Dict={}) -> None:
         """ Connect to the PostgreSQL database server """
         self._connection = None
         try:
@@ -247,7 +247,7 @@ class Database:
             params = {**params, **self.connection_config.__dict__}
             real_keepalive_kwargs = keepalive_kwargs if keepalive_kwargs != {} \
                 else self.keepalive_kwargs 
-            params = {**params, **real_keepalive_kwargs}
+            params = {**params, **connect_kwargs, **real_keepalive_kwargs}
             
             # connect to the PostgreSQL server
             self.LOGGER.info('Connecting to the PostgreSQL database...')
@@ -256,7 +256,7 @@ class Database:
             self.LOGGER.info('Successful connection!')
             
         except (Exception, psycopg2.DatabaseError) as error:
-            self.LOGGER.error(error)                
+            self.LOGGER.error(error)
     
     def refresh(self):
         self.close()
