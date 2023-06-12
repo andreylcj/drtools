@@ -14,7 +14,7 @@ from drtools.utils import (
     list_ops
 )
 from drtools.data_science.features_handle import (
-    ExtendedFeatureJSON, Categorical, Features, Feature
+    ExtendedFeatureJSON, Categorical, Features, Feature, FeatureType
 )
 from enum import Enum
 
@@ -35,7 +35,7 @@ from enum import Enum
 
 class Algorithm(Enum):
     LIGHTGBM = "LightGBM",
-    NEURAL_NETWORK = "Neural Network",
+    NN = "Neural Network",
     
     @property
     def pname(self):
@@ -74,15 +74,39 @@ class BaseModel:
             description=kwargs.get('description', None),
             rules=kwargs.get('rules', None),
             input_features=Features([
-                Feature(**feature)
+                Feature(
+                    name=feature['name'],
+                    type=FeatureType.smart_instance(feature['type']),
+                    **{
+                        k: v
+                        for k, v in feature.items()
+                        if k not in ['name', 'type']
+                    }
+                )
                 for feature in kwargs.get('input_features', [])
             ]),
             output_features=Features([
-                Feature(**feature)
+                Feature(
+                    name=feature['name'],
+                    type=FeatureType.smart_instance(feature['type']),
+                    **{
+                        k: v
+                        for k, v in feature.items()
+                        if k not in ['name', 'type']
+                    }
+                )             
                 for feature in kwargs.get('output_features', [])
             ]),
             extra_features=Features([
-                Feature(**feature)
+                Feature(
+                    name=feature['name'],
+                    type=FeatureType.smart_instance(feature['type']),
+                    **{
+                        k: v
+                        for k, v in feature.items()
+                        if k not in ['name', 'type']
+                    }
+                )
                 for feature in kwargs.get('extra_features', [])
             ]),
             training_information=kwargs.get('training_information', None),
@@ -414,7 +438,7 @@ class LightGBM(BaseModel):
         y_pred = model_instance.predict(X, *args, **kwargs)
         self.LOGGER.info(f'Predicting data for model {self.model_name}... Done!')        
         return y_pred
-    
+
     
 class ModelHandler:
     def __init__(self) -> None:
