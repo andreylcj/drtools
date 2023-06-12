@@ -1014,8 +1014,12 @@ def to_dict(
                     
                 return data
             
-        else:
+        elif type(obj) in [str, int, float, bool] \
+        or obj is None:
             return obj
+        
+        else:
+            return str(obj)
     
     resp_dict = _to_dict(obj, self_class_name)
     return resp_dict
