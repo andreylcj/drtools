@@ -8,7 +8,7 @@ other stuff related to features from Machine Learn Model.
 from drtools.utils import list_ops
 from pandas import DataFrame
 import pandas as pd
-from typing import List, Union, Dict, TypedDict, Tuple
+from typing import List, Union, Dict, TypedDict, Any
 from drtools.utils import list_ops
 from drtools.logs import Log, FormatterOptions
 # from drtools.data_science.model_handling import Model
@@ -165,6 +165,18 @@ class FeatureType(Enum):
     FLOAT = "float"
     DATETIME = "datetime"
     TIMESTAMP = "timestamp"
+    
+    @classmethod
+    def smart_instantiation(cls, value):
+        obj = getattr(cls, value, None)
+        if obj is None:
+            for feature_type in cls:
+                if feature_type.value == value:
+                    obj = feature_type
+                    break
+        if obj is None:
+            raise Exception(f"No correspondence was found for value: {value}")
+        return obj
 
 
 Input = 'input'
@@ -203,7 +215,11 @@ class Feature:
     
     @property
     def info(self) -> Dict:
-        return self.__dict__
+        return {
+            **self.__dict__,
+            'name': self.name,
+            'type': self.type.value
+        }
 
 
 class Features:
@@ -328,5 +344,5 @@ class BaseTransformer:
         self.model = model
         self.LOGGER = LOGGER
     
-    def apply(self, *args, **kwargs) -> Tuple:
+    def apply(self, *args, **kwargs) -> Any:
         pass
