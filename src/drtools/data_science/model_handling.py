@@ -76,7 +76,7 @@ class BaseModel:
             input_features=Features([
                 Feature(
                     name=feature['name'],
-                    type=FeatureType.smart_instance(feature['type']),
+                    type=FeatureType.smart_instantiation(feature['type']),
                     **{
                         k: v
                         for k, v in feature.items()
@@ -88,7 +88,7 @@ class BaseModel:
             output_features=Features([
                 Feature(
                     name=feature['name'],
-                    type=FeatureType.smart_instance(feature['type']),
+                    type=FeatureType.smart_instantiation(feature['type']),
                     **{
                         k: v
                         for k, v in feature.items()
@@ -100,7 +100,7 @@ class BaseModel:
             extra_features=Features([
                 Feature(
                     name=feature['name'],
-                    type=FeatureType.smart_instance(feature['type']),
+                    type=FeatureType.smart_instantiation(feature['type']),
                     **{
                         k: v
                         for k, v in feature.items()
