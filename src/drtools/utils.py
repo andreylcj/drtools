@@ -865,12 +865,27 @@ def class_to_dict(
     return result
 
 
+class CustomTreatment:
+    def __init__(
+        self,
+        fullname: str,
+        func: Callable
+    ) -> None:
+        self.fullname = fullname
+        self.func = func
+        
+    def apply(self, class_):
+        return self.func(class_)
+
+
 def to_dict(
     obj: Any,
     ignore_meta_when_expanded: bool=True,
     self_class_name: str="self",
     ignore_attr: List[str]=[],
     ignore_abs_name_spaces: List[str]=[],
+    custom_treatment_namespaces: List[CustomTreatment]=[],
+    custom_treatment_types: List[CustomTreatment]=[],
 ) -> Dict:
     """Get Dict representation of instantiated object.
 
@@ -911,6 +926,15 @@ def to_dict(
     
     expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
     
+    CUSTOM_TREATMENT_NAMESPACES = {
+        custom_treat.fullname: custom_treat
+        for custom_treat in custom_treatment_namespaces
+    }
+    CUSTOM_TREATMENT_TYPES = {
+        custom_treat.fullname: custom_treat
+        for custom_treat in custom_treatment_types
+    }
+    
     def _to_dict(obj: Any, name_space: str) -> Dict:
         
         attr_name = name_space.split(".")[-1]
@@ -934,6 +958,14 @@ def to_dict(
                     reason=ReasonTypes.IGNORE_ATTRIBUTE.name
                 )
             return resp
+         
+        elif name_space in CUSTOM_TREATMENT_NAMESPACES:
+            custom_treat = CUSTOM_TREATMENT_NAMESPACES[name_space]
+            return custom_treat.apply(obj)
+         
+        elif str(type(obj).__name__) in CUSTOM_TREATMENT_TYPES:
+            custom_treat = CUSTOM_TREATMENT_TYPES[str(type(obj).__name__)]
+            return custom_treat.apply(obj)
             
         if isinstance(obj, dict):
             data = {}
