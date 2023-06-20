@@ -330,12 +330,12 @@ class FindOnData:
                             )
                 return final_query_conditional_response
             elif self._is_valid_comparison_syntax(query=query):
-                self.LOGGER.info(f'Comparison Query: {query}')
+                self.LOGGER.debug(f'Comparison Query: {query}')
                 resp = self._perform_comparison_operation(
                     data=self.Data, 
                     query=query
                 )
-                self.LOGGER.info(f'Valid rows: {resp.sum()} from {self.Data.shape[0]}')
+                self.LOGGER.debug(f'Valid rows: {resp.sum()} from {self.Data.shape[0]}')
                 return resp
         query_conditional = _recursive_query(query=self.Query, depth=0)
         return self.Data[query_conditional]
