@@ -529,7 +529,7 @@ class Model:
             If model algorithm is invalid
         """
         
-        self.LOGGER.info(f'Loading model {self.get_model_name()}...')        
+        self.LOGGER.debug(f'Loading model {self.get_model_name()}...')        
         model = None        
         if self.model_algorithm == 'LightGBM':
             import lightgbm as lgb
@@ -539,7 +539,7 @@ class Model:
             model = keras.models.load_model(model_file_path, *args, **kwargs)
         else:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
-        self.LOGGER.info(f'Loading model {self.get_model_name()}... Done!')        
+        self.LOGGER.debug(f'Loading model {self.get_model_name()}... Done!')        
         return model
     
     @start_end_log('save_model')
@@ -575,7 +575,7 @@ class Model:
         Exception
             If model algorithm is invalid
         """
-        self.LOGGER.info(f'Saving model {self.get_model_name()}...')        
+        self.LOGGER.debug(f'Saving model {self.get_model_name()}...')        
         # save_path = f'{project_root_path}/models/{self.get_model_name()}/model/{self.get_model_name()}'        
         if self.model_algorithm == 'LightGBM':
             create_directories_of_path(path)
@@ -585,7 +585,7 @@ class Model:
             model_instance.save(path, *args, **kwargs)
         else:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
-        self.LOGGER.info(f'Saving model {self.get_model_name()}... Done!')
+        self.LOGGER.debug(f'Saving model {self.get_model_name()}... Done!')
     
     @start_end_log('train')
     def train(
@@ -617,15 +617,15 @@ class Model:
         Exception
             If model algorithm is invalid
         """
-        self.LOGGER.info(f'Training model {self.get_model_name()}...')                
+        self.LOGGER.debug(f'Training model {self.get_model_name()}...')                
         if self.model_algorithm == 'LightGBM':
             import lightgbm as lgb
             model_instance = lgb.train(*args, **kwargs)
-            self.LOGGER.info(f'Training model {self.get_model_name()}... Done!')            
+            self.LOGGER.debug(f'Training model {self.get_model_name()}... Done!')            
             return model_instance
         elif self.model_algorithm == 'NeuralNetworks':
             history = model_instance.fit(*args, **kwargs)
-            self.LOGGER.info(f'Training model {self.get_model_name()}... Done!')            
+            self.LOGGER.debug(f'Training model {self.get_model_name()}... Done!')            
             return model_instance, history
         else:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')
@@ -663,7 +663,7 @@ class Model:
         Exception
             If model algorithm is invalid
         """    
-        self.LOGGER.info(f'Predicting data for model {self.get_model_name()}...')  
+        self.LOGGER.debug(f'Predicting data for model {self.get_model_name()}...')  
         model_instance = self.load_model(model_file_path)
         if self.model_algorithm == 'LightGBM':
             y_pred = model_instance.predict(X, *args, **kwargs)
@@ -672,7 +672,7 @@ class Model:
             y_pred = y_pred.reshape(1, -1)[0]
         else:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
-        self.LOGGER.info(f'Predicting data for model {self.get_model_name()}... Done!')        
+        self.LOGGER.debug(f'Predicting data for model {self.get_model_name()}... Done!')        
         return y_pred
     
     @start_end_log('one_hot_encoding')
@@ -1245,7 +1245,7 @@ class Database(ABC):
         DataFrame
             The local database data as DataFrame
         """
-        self.LOGGER.info(f'Loading {self.db_name()}...')
+        self.LOGGER.debug(f'Loading {self.db_name()}...')
         
         df = read_dir_as_df(
             Utils.join_path(
@@ -1270,7 +1270,7 @@ class Database(ABC):
         cols_correct_order = list_ops(self.get_col_names(), df.columns, ops='intersection')            
         df = df.loc[:, cols_correct_order]
             
-        self.LOGGER.info(f'Loading {self.db_name()}... Done!')
+        self.LOGGER.debug(f'Loading {self.db_name()}... Done!')
             
         return df
     
@@ -1364,7 +1364,7 @@ class Database(ABC):
             The inserted ids.
         """
         
-        self.LOGGER.info(f'Inserting data on {self.db_name()}...')
+        self.LOGGER.debug(f'Inserting data on {self.db_name()}...')
         
         df = dataframe.copy()
         
@@ -1415,7 +1415,7 @@ class Database(ABC):
         else:
             self._save_data(df, filename)
         
-        self.LOGGER.info(f'Inserting data on {self.db_name()}... Done!')
+        self.LOGGER.debug(f'Inserting data on {self.db_name()}... Done!')
         
         return sorted(inserted_ids)
     
@@ -1443,7 +1443,7 @@ class Database(ABC):
         if df.shape[0] == 0:
             return []        
         
-        self.LOGGER.info(f'Filtering already inserted...')
+        self.LOGGER.debug(f'Filtering already inserted...')
         original_shape = df.shape
         necessary_cols = list_ops(
             self.get_col_names(),
@@ -1466,9 +1466,9 @@ class Database(ABC):
         df = df.drop('md5_of_row', axis=1)
         del intersection_data
         final_shape = df.shape
-        self.LOGGER.info(f'{(original_shape[0] - final_shape[0]):,} rows was already inserted.')
-        self.LOGGER.info(f'{final_shape[0]:,} rows to insert.')
-        self.LOGGER.info(f'Filtering already inserted... Done!')
+        self.LOGGER.debug(f'{(original_shape[0] - final_shape[0]):,} rows was already inserted.')
+        self.LOGGER.debug(f'{final_shape[0]:,} rows to insert.')
+        self.LOGGER.debug(f'Filtering already inserted... Done!')
         
         # return df
         
@@ -1556,7 +1556,7 @@ class Database(ABC):
             seen = set()
             dupes = [x for x in df.id.values if x in seen or seen.add(x)]
             dupes_df = df[df.id.isin(dupes)]
-            self.LOGGER.info(dupes_df)
+            self.LOGGER.debug(dupes_df)
             raise Exception(f'There are duplicated ids on received data. Duplicate ids: {dupes}')
         
         data_path = Utils.join_path(

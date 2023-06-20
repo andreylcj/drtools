@@ -259,7 +259,7 @@ def construct_features(
                 raise DataFrameMissingColumns(missing_cols)
             
             if log_details:
-                self.LOGGER.info(f'Constructing {insert_features_name} from {must_have_features_name}')
+                self.LOGGER.debug(f'Constructing {insert_features_name} from {must_have_features_name}')
             
             if type_must_have_features:
                 dataframe = typeraze(
