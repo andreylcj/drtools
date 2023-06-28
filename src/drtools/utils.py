@@ -886,6 +886,9 @@ def to_dict(
     ignore_abs_name_spaces: List[str]=[],
     custom_treatment_namespaces: List[CustomTreatment]=[],
     custom_treatment_types: List[CustomTreatment]=[],
+    ignore_exceptions: bool=False,
+    exception_handler: Callable=None,
+    depth_limit: int=5
 ) -> Dict:
     """Get Dict representation of instantiated object.
 
@@ -904,6 +907,7 @@ def to_dict(
         SUCCESS = "Success"
         IGNORED = "Ignored"
         NOT_EXPANDED = "Not expanded"
+        ERROR = "Error"
         
     class ReasonTypes(Enum):
         EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
@@ -911,12 +915,14 @@ def to_dict(
         IGNORE_ATTRIBUTE = "Ignore attribute"
         IGNORE_CLASS = "Ignore class"
         REASON_NOT_APPLICABLE = "Reason not applicable"
+        ERROR = "Error when try expand"
     
     class ClassInfo(TypedDict):
         nameSpace: str
         className: str
         code: CodeTypes
         reason: ReasonTypes
+        error: Optional[str]
     
     class ExpandedAtInfo(ClassInfo):
         expandedAt: str
@@ -935,123 +941,135 @@ def to_dict(
         for custom_treat in custom_treatment_types
     }
     
-    def _to_dict(obj: Any, name_space: str) -> Dict:
+    def _to_dict(obj: Any, name_space: str, depth: int=0) -> Dict:
         
         attr_name = name_space.split(".")[-1]
         
-        if name_space in ignore_abs_name_spaces:
-            resp = {}
-            resp['__meta__'] = ClassInfo(
-                    nameSpace=name_space,
-                    className=attr_name,
-                    code=CodeTypes.IGNORED.name,
-                    reason=ReasonTypes.IGNORE_ABS_NAME_SPACE.name
-                )
-            return resp
-        
-        elif attr_name in ignore_attr:
-            resp = {}
-            resp['__meta__'] = ClassInfo(
-                    nameSpace=name_space,
-                    className=attr_name,
-                    code=CodeTypes.IGNORED.name,
-                    reason=ReasonTypes.IGNORE_ATTRIBUTE.name
-                )
-            return resp
-         
-        elif name_space in CUSTOM_TREATMENT_NAMESPACES:
-            custom_treat = CUSTOM_TREATMENT_NAMESPACES[name_space]
-            return custom_treat.apply(obj)
-         
-        elif str(type(obj).__name__) in CUSTOM_TREATMENT_TYPES:
-            custom_treat = CUSTOM_TREATMENT_TYPES[str(type(obj).__name__)]
-            return custom_treat.apply(obj)
+        try:
             
-        if isinstance(obj, dict):
-            data = {}
-            for (k, v) in obj.items():
-                item_name_space = f'{name_space}.{k}'
-                item_append = _to_dict(v, item_name_space)
-                data[k] = item_append
-            return data
-        
-        elif hasattr(obj, "_ast"):
-            return _to_dict(obj._ast(), name_space=name_space)
-        
-        elif hasattr(obj, "__iter__") and not isinstance(obj, str):       
-            idx = 0
-            list_resp = []
-            for v in obj:
-                item_name_space = f'{name_space}[{idx}]'
-                item_append = _to_dict(v, item_name_space)
-                list_resp.append(item_append)
-                idx = idx + 1
-                    
-            return list_resp
-        
-        elif hasattr(obj, "__dict__"):
+            if depth > depth_limit:
+                raise Exception(f"Limit depth was reach. Limit Depth: {depth_limit:,}")
             
-            if expanded_at.get(obj, None) is not None:
-                return expanded_at[obj]
-            
-            else:
-                class_name = None
-                if hasattr(obj, "__class__"):
-                    class_name = obj.__class__.__name__
-                    
-                expanded_at[obj] = ExpandedAtMetaInfo(
-                    __meta__=ExpandedAtInfo(
-                        nameSpace=None,
-                        className=class_name,
-                        expandedAt=name_space,
-                        code=CodeTypes.NOT_EXPANDED.name,
-                        reason=ReasonTypes.EXPANDED_AT_OTHER_LOCATION.name
+            if name_space in ignore_abs_name_spaces:
+                resp = {}
+                resp['__meta__'] = ClassInfo(
+                        nameSpace=name_space,
+                        className=attr_name,
+                        code=CodeTypes.IGNORED.name,
+                        reason=ReasonTypes.IGNORE_ABS_NAME_SPACE.name
                     )
-                )
+                return resp
+            
+            elif attr_name in ignore_attr:
+                resp = {}
+                resp['__meta__'] = ClassInfo(
+                        nameSpace=name_space,
+                        className=attr_name,
+                        code=CodeTypes.IGNORED.name,
+                        reason=ReasonTypes.IGNORE_ATTRIBUTE.name
+                    )
+                return resp
+            
+            elif name_space in CUSTOM_TREATMENT_NAMESPACES:
+                custom_treat = CUSTOM_TREATMENT_NAMESPACES[name_space]
+                return custom_treat.apply(obj)
+            
+            elif str(type(obj).__name__) in CUSTOM_TREATMENT_TYPES:
+                custom_treat = CUSTOM_TREATMENT_TYPES[str(type(obj).__name__)]
+                return custom_treat.apply(obj)
                 
-                attr_name = name_space.split(".")[-1]
-
-                get_info_from_keys = list(obj.__dict__.keys())
-                for key_dir in obj.__dir__():
-                    if key_dir not in get_info_from_keys \
-                    and not key_dir.startswith('__') \
-                    and not key_dir.endswith('__') \
-                    and not callable(getattr(obj, key_dir)) \
-                    and getattr(obj, key_dir) is not None:
-                        get_info_from_keys.append(key_dir)
-                
-                data = dict([
-                        (
-                            key, 
-                            _to_dict(getattr(obj, key), f'{name_space}.{key}')
-                        ) 
-                        for key in get_info_from_keys
-                    ])
-                
-                # data = dict([
-                #         (key, _to_dict(value, f'{name_space}.{key}')) 
-                #         for key, value in obj.__dict__.items() 
-                #         if not callable(value) 
-                #         # and not key.startswith('__') 
-                #         # and not key.startswith('_')
-                #     ])
-                
-                if not ignore_meta_when_expanded:
-                    data["__meta__"]: ClassInfo = ClassInfo(
-                            nameSpace=name_space,
-                            className=class_name,
-                            code=CodeTypes.SUCCESS.name,
-                            reason=ReasonTypes.REASON_NOT_APPLICABLE.name
-                        )
-                    
+            if isinstance(obj, dict):
+                data = {}
+                for (k, v) in obj.items():
+                    item_name_space = f'{name_space}.{k}'
+                    item_append = _to_dict(v, item_name_space, depth+1)
+                    data[k] = item_append
                 return data
             
-        elif type(obj) in [str, int, float, bool] \
-        or obj is None:
-            return obj
-        
-        else:
-            return str(obj)
+            elif hasattr(obj, "_ast"):
+                return _to_dict(obj._ast(), name_space, depth+1)
+            
+            elif hasattr(obj, "__iter__") and not isinstance(obj, str):       
+                idx = 0
+                list_resp = []
+                for v in obj:
+                    item_name_space = f'{name_space}[{idx}]'
+                    item_append = _to_dict(v, item_name_space, depth+1)
+                    list_resp.append(item_append)
+                    idx = idx + 1
+                        
+                return list_resp
+            
+            elif hasattr(obj, "__dict__"):
+                
+                if expanded_at.get(obj, None) is not None:
+                    return expanded_at[obj]
+                
+                else:
+                    class_name = None
+                    if hasattr(obj, "__class__"):
+                        class_name = obj.__class__.__name__
+                        
+                    expanded_at[obj] = ExpandedAtMetaInfo(
+                        __meta__=ExpandedAtInfo(
+                            nameSpace=None,
+                            className=class_name,
+                            expandedAt=name_space,
+                            code=CodeTypes.NOT_EXPANDED.name,
+                            reason=ReasonTypes.EXPANDED_AT_OTHER_LOCATION.name
+                        )
+                    )
+                    
+                    attr_name = name_space.split(".")[-1]
+
+                    get_info_from_keys = list(obj.__dict__.keys())
+                    for key_dir in obj.__dir__():
+                        if key_dir not in get_info_from_keys \
+                        and not key_dir.startswith('__') \
+                        and not key_dir.endswith('__') \
+                        and not callable(getattr(obj, key_dir)) \
+                        and getattr(obj, key_dir) is not None:
+                            get_info_from_keys.append(key_dir)
+                    
+                    data = dict([
+                            (
+                                key, 
+                                _to_dict(getattr(obj, key), f'{name_space}.{key}', depth+1)
+                            ) 
+                            for key in get_info_from_keys
+                        ])
+                    
+                    if not ignore_meta_when_expanded:
+                        data["__meta__"]: ClassInfo = ClassInfo(
+                                nameSpace=name_space,
+                                className=class_name,
+                                code=CodeTypes.SUCCESS.name,
+                                reason=ReasonTypes.REASON_NOT_APPLICABLE.name
+                            )
+                        
+                    return data
+                
+            elif type(obj) in [str, int, float, bool] \
+            or obj is None:
+                return obj
+            
+            else:
+                return str(obj)
+            
+        except Exception as exc:
+            if not ignore_exceptions:
+                raise exc
+            if exception_handler is None:
+                return {
+                    '__meta__': ClassInfo(
+                        nameSpace=name_space,
+                        className=attr_name,
+                        code=CodeTypes.ERROR.name,
+                        reason=ReasonTypes.ERROR.name,
+                        error=str(exc)
+                    )
+                }
+            return exception_handler(exc)
     
     resp_dict = _to_dict(obj, self_class_name)
     return resp_dict
