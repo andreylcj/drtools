@@ -886,6 +886,9 @@ def to_dict(
     ignore_abs_name_spaces: List[str]=[],
     custom_treatment_namespaces: List[CustomTreatment]=[],
     custom_treatment_types: List[CustomTreatment]=[],
+    custom_treatment_obj_is: List[CustomTreatment]=[],
+    custom_treatment_obj_eq: List[CustomTreatment]=[],
+    custom_treatment_conditional: List[CustomTreatment]=[],
     ignore_exceptions: bool=False,
     exception_handler: Callable=None,
     depth_limit: int=5
@@ -908,6 +911,7 @@ def to_dict(
         IGNORED = "Ignored"
         NOT_EXPANDED = "Not expanded"
         ERROR = "Error"
+        DEPTH_LIMIT = "Depth limit"
         
     class ReasonTypes(Enum):
         EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
@@ -916,6 +920,7 @@ def to_dict(
         IGNORE_CLASS = "Ignore class"
         REASON_NOT_APPLICABLE = "Reason not applicable"
         ERROR = "Error when try expand"
+        DEPTH_LIMIT_REACHED = "Depth limit reached"
     
     class ClassInfo(TypedDict):
         nameSpace: str
@@ -947,9 +952,25 @@ def to_dict(
         
         try:
             
-            if depth > depth_limit:
-                raise Exception(f"Limit depth was reach. Limit Depth: {depth_limit:,}")
+            ### Check Policies
             
+            ################################################################
+            # Depth Limit | depth-limit
+            ################################################################
+            if depth > depth_limit:
+                # raise Exception(f"Limit depth was reach. Limit Depth: {depth_limit:,}")
+                return {
+                    '__meta__': ClassInfo(
+                        nameSpace=name_space,
+                        className=attr_name,
+                        code=CodeTypes.DEPTH_LIMIT.name,
+                        reason=ReasonTypes.DEPTH_LIMIT_REACHED.name,
+                    )
+                }
+            
+            ################################################################
+            # Ignore abs name spaces | ignore-abs-name-spaces
+            ################################################################
             if name_space in ignore_abs_name_spaces:
                 resp = {}
                 resp['__meta__'] = ClassInfo(
@@ -960,7 +981,10 @@ def to_dict(
                     )
                 return resp
             
-            elif attr_name in ignore_attr:
+            ################################################################
+            # Ignore attr | ignore-attr
+            ################################################################
+            if attr_name in ignore_attr:
                 resp = {}
                 resp['__meta__'] = ClassInfo(
                         nameSpace=name_space,
@@ -970,14 +994,48 @@ def to_dict(
                     )
                 return resp
             
-            elif name_space in CUSTOM_TREATMENT_NAMESPACES:
+            ################################################################
+            # Custom treatment namespaces | custom-treatment-namespaces
+            ################################################################
+            if name_space in CUSTOM_TREATMENT_NAMESPACES:
                 custom_treat = CUSTOM_TREATMENT_NAMESPACES[name_space]
                 return custom_treat.apply(obj)
             
-            elif str(type(obj).__name__) in CUSTOM_TREATMENT_TYPES:
+            ################################################################
+            # Custom treatment types | custom-treatment-types
+            ################################################################
+            if str(type(obj).__name__) in CUSTOM_TREATMENT_TYPES:
                 custom_treat = CUSTOM_TREATMENT_TYPES[str(type(obj).__name__)]
                 return custom_treat.apply(obj)
-                
+            
+            ################################################################
+            # Custom treatment when obj is | custom-treatment-when-obj-is
+            ################################################################
+            for custom_treat in custom_treatment_obj_is:
+                if obj is custom_treat.fullname:
+                    return custom_treat.apply(obj)
+            
+            ################################################################
+            # Custom treatment when obj eq | custom-treatment-when-obj-eq
+            ################################################################
+            for custom_treat in custom_treatment_obj_eq:
+                if obj == custom_treat.fullname:
+                    return custom_treat.apply(obj)
+            
+            ################################################################
+            # Custom treatment conditional | custom-treatment-conditional
+            ################################################################
+            for custom_treat in custom_treatment_conditional:
+                if custom_treat.fullname(obj):
+                    return custom_treat.apply(obj)
+            
+            
+            
+            ################################################################
+            # Default Handle Obj
+            ################################################################
+            
+            # If obj is instance of dict
             if isinstance(obj, dict):
                 data = {}
                 for (k, v) in obj.items():
@@ -986,10 +1044,13 @@ def to_dict(
                     data[k] = item_append
                 return data
             
-            elif hasattr(obj, "_ast"):
+            # If obj has _ast
+            if hasattr(obj, "_ast"):
                 return _to_dict(obj._ast(), name_space, depth+1)
             
-            elif hasattr(obj, "__iter__") and not isinstance(obj, str):       
+            
+            # If obj has __iter__
+            if hasattr(obj, "__iter__") and not isinstance(obj, str):       
                 idx = 0
                 list_resp = []
                 for v in obj:
@@ -1000,7 +1061,8 @@ def to_dict(
                         
                 return list_resp
             
-            elif hasattr(obj, "__dict__"):
+            # If obj has __dict__
+            if hasattr(obj, "__dict__"):
                 
                 if expanded_at.get(obj, None) is not None:
                     return expanded_at[obj]
@@ -1048,13 +1110,18 @@ def to_dict(
                             )
                         
                     return data
-                
-            elif type(obj) in [str, int, float, bool] \
-            or obj is None:
+            
+            # Check None
+            if obj is None:
                 return obj
             
-            else:
-                return str(obj)
+            # Check natural types
+            for natural_type in [str, int, float, bool]:
+                if isinstance(obj, natural_type):
+                    return obj
+            
+            # Return string of obj
+            return str(obj)
             
         except Exception as exc:
             if not ignore_exceptions:
