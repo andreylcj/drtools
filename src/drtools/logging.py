@@ -29,21 +29,21 @@ class CallerFilter(logging.Filter):
         return True
 
 
-def caller_reader(f):
-    """This wrapper updates the context with the callor infos"""
-    def wrapper(self, *args):
-        caller = getframeinfo(stack()[1][0])
-        last_name = split_path(
-            caller.filename
-        )[-1]
-        file = caller.filename \
-            if self.formatter_options.full_file_path_log \
-            else last_name
-        line_n = caller.lineno
-        self._filter.file = f'{file}:{line_n}'
-        return f(self, *args)
-    wrapper.__doc__ = f.__doc__
-    return wrapper
+# def caller_reader(f):
+#     """This wrapper updates the context with the callor infos"""
+#     def wrapper(self, *args):
+#         caller = getframeinfo(stack()[1][0])
+#         last_name = split_path(
+#             caller.filename
+#         )[-1]
+#         file = caller.filename \
+#             if self.formatter_options.full_file_path_log \
+#             else last_name
+#         line_n = caller.lineno
+#         self._filter.file = f'{file}:{line_n}'
+#         return f(self, *args)
+#     wrapper.__doc__ = f.__doc__
+#     return wrapper
 
 
 class FormatterOptions:
@@ -60,21 +60,12 @@ class FormatterOptions:
     ) -> None:
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
-        default_settings = True
+        self._start_default_settings()
         for k, v in args.items():
             if v is not None:
-                default_settings = False
-                break
-        if default_settings:
-            self._default_settings()
-        else:
-            for k, v in args.items():
-                if v is not None:
-                    setattr(self, k, v)
-                else:
-                    setattr(self, k, False)
+                setattr(self, k, v)
 
-    def _default_settings(self):
+    def _start_default_settings(self):
         self.include_thread_name = True
         self.include_file_name = True
         self.include_datetime = True
@@ -206,17 +197,28 @@ class Logger:
 
     def _construct_formatter(self):
         formatter_text = ''
-        if self.formatter_options.include_thread_name:
-            formatter_text = '[%(threadName)-14s] '
-        if self.formatter_options.include_file_name:
-            formatter_text = formatter_text + '[%(file)-20s] '
+        
         if self.formatter_options.include_datetime:
-            formatter_text = formatter_text + '[%(asctime)s.%(msecs)03d] '
+            formatter_text += '%(asctime)s.%(msecs)03d '
+            
+        if self.formatter_options.full_file_path_log:
+            formatter_text += '{%(pathname)s:%(lineno)d} '
+        elif self.formatter_options.include_file_name:
+            formatter_text += '{%(filename)s:%(lineno)d} '
+            
         if self.formatter_options.include_logger_name:
-            formatter_text = formatter_text + '[%(name)-12s] '
+            formatter_text += '[%(name)-12s] '
+            
+        if self.formatter_options.include_thread_name:
+            formatter_text += '[%(threadName)-14s] '
+            
         if self.formatter_options.include_level_name:
-            formatter_text = formatter_text + '[%(levelname)8s] '        
-        formatter = logging.Formatter(formatter_text + '%(message)s', datefmt='%d-%m-%Y %H:%M:%S')
+            formatter_text += '[%(levelname)8s] '
+            
+        formatter_text += '%(message)s'
+        
+        formatter = logging.Formatter(formatter_text, datefmt='%d-%m-%Y %H:%M:%S')
+        
         return formatter
     
     
@@ -331,7 +333,7 @@ class Logger:
         msg = f'[{exec_time}] {msg}'
         return msg
     
-    @caller_reader
+    # @caller_reader
     def debug(self, msg: any) -> None:
         """Log in DEBUG level
 
@@ -344,7 +346,7 @@ class Logger:
             msg = self._insert_exec_time_on_message(msg, 10)
         self.LOGGER.debug(msg)
 
-    @caller_reader
+    # @caller_reader
     def info(self, msg: any) -> None:
         """Log in INFO level
 
@@ -357,7 +359,7 @@ class Logger:
             msg = self._insert_exec_time_on_message(msg, 20)
         self.LOGGER.info(msg)
         
-    @caller_reader
+    # @caller_reader
     def warning(self, msg: any) -> None:
         """Log in WARNING level
 
@@ -370,7 +372,7 @@ class Logger:
             msg = self._insert_exec_time_on_message(msg, 30)
         self.LOGGER.warning(msg)
 
-    @caller_reader
+    # @caller_reader
     def error(self, msg: any) -> None:
         """Log in ERROR level
 
@@ -383,7 +385,7 @@ class Logger:
             msg = self._insert_exec_time_on_message(msg, 40)
         self.LOGGER.error(msg)
         
-    @caller_reader
+    # @caller_reader
     def critical(self, msg: any) -> None:
         """Log in CRITICAL level
 

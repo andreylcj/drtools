@@ -16,10 +16,6 @@ WorkerData = any
 """any: Worker data can be any type of data."""
 
 
-LambdaResponse = any
-"""any: Lambda Response can be any type of data."""
-
-
 class Worker:
     def __init__(
         self,
@@ -84,7 +80,7 @@ class ThreadPoolExecutor:
                 executor.submit(
                     self._track_progress,
                     Worker(
-                        parameters=self.parameters, 
+                        parameters=worker, 
                         num=worker_num+1, 
                         verbosity=worker_num % self.verbose == 0 if self.verbose > 0 \
                             else False
@@ -141,7 +137,7 @@ class ThreadPoolExecutor:
             func_response = self.exec_func(func_parameters)
             
             if worker.verbosity:
-                log_text = f'Succesful execution! Lambda execution response: '
+                log_text = f'Succesful execution! Execution response: '
                 response_str = str(func_response)
                 log_text += f'{response_str[:100]}'
                 
