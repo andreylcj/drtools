@@ -878,6 +878,92 @@ class CustomTreatment:
         return self.func(class_)
 
 
+def convert_keys_to_strings(obj, depth: int=0):
+    
+    response = None
+    iter_items = []
+    
+    is_dict = lambda x: isinstance(x, dict)
+    has_iter = lambda x: hasattr(x, "__iter__") and not isinstance(x, str)
+    
+    obj_is_dict = is_dict(obj)
+    obj_has_iter = has_iter(obj)
+    
+    if depth == 0 and not obj_is_dict:
+        raise Exception(f"Object {obj} not acceptable.")
+    
+    if obj_is_dict:
+        iter_items = obj.items()
+        response = {}
+        
+    elif obj_has_iter:
+        iter_items = [(None, item) for item in obj]
+        response = []
+    
+    for key, value in iter_items:
+        new_key = str(key)
+        
+        if is_dict(value):
+            new_val = convert_keys_to_strings(value, depth+1)
+            
+        elif has_iter(value):
+            new_val = []
+            
+            for item in value:
+                
+                new_value = item
+                
+                if is_dict(item) or has_iter(item):
+                    new_value = convert_keys_to_strings(item, depth+1)
+                    
+                new_val.append(new_value)
+            
+        else:
+            new_val = value
+            
+        if obj_is_dict:
+            response[new_key] = new_val
+            
+        elif obj_has_iter:
+            response.append(new_val)
+            
+    return response
+
+
+class CodeTypes(Enum):
+    SUCCESS = "Success"
+    IGNORED = "Ignored"
+    NOT_EXPANDED = "Not expanded"
+    ERROR = "Error"
+    DEPTH_LIMIT = "Depth limit"
+
+
+class ReasonTypes(Enum):
+    EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
+    IGNORE_ABS_NAME_SPACE = "Ignore absolute name space"
+    IGNORE_ATTRIBUTE = "Ignore attribute"
+    IGNORE_CLASS = "Ignore class"
+    REASON_NOT_APPLICABLE = "Reason not applicable"
+    ERROR = "Error when try expand"
+    DEPTH_LIMIT_REACHED = "Depth limit reached"
+
+
+class ClassInfo(TypedDict):
+    nameSpace: str
+    className: str
+    code: CodeTypes
+    reason: ReasonTypes
+    error: Optional[str]
+
+
+class ExpandedAtInfo(ClassInfo):
+    expandedAt: str
+
+
+class ExpandedAtMetaInfo(TypedDict):
+    __meta__: ExpandedAtInfo
+
+
 def to_dict(
     obj: Any,
     ignore_meta_when_expanded: bool=True,
@@ -905,35 +991,6 @@ def to_dict(
     Dict
         The Dict representation of object.
     """
-    
-    class CodeTypes(Enum):
-        SUCCESS = "Success"
-        IGNORED = "Ignored"
-        NOT_EXPANDED = "Not expanded"
-        ERROR = "Error"
-        DEPTH_LIMIT = "Depth limit"
-        
-    class ReasonTypes(Enum):
-        EXPANDED_AT_OTHER_LOCATION = "Expanded at other location"
-        IGNORE_ABS_NAME_SPACE = "Ignore absolute name space"
-        IGNORE_ATTRIBUTE = "Ignore attribute"
-        IGNORE_CLASS = "Ignore class"
-        REASON_NOT_APPLICABLE = "Reason not applicable"
-        ERROR = "Error when try expand"
-        DEPTH_LIMIT_REACHED = "Depth limit reached"
-    
-    class ClassInfo(TypedDict):
-        nameSpace: str
-        className: str
-        code: CodeTypes
-        reason: ReasonTypes
-        error: Optional[str]
-    
-    class ExpandedAtInfo(ClassInfo):
-        expandedAt: str
-        
-    class ExpandedAtMetaInfo(TypedDict):
-        __meta__: ExpandedAtInfo
     
     expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
     
@@ -1139,6 +1196,7 @@ def to_dict(
             return exception_handler(exc)
     
     resp_dict = _to_dict(obj, self_class_name)
+    resp_dict = convert_keys_to_strings(resp_dict)
     return resp_dict
 
 
