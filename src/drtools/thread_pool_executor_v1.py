@@ -122,10 +122,11 @@ class ThreadPoolExecutor:
     def _exec_func_handler(self, worker: Worker):
         started_at = datetime.now()
         
+        parameters_str = str(worker.parameters)
+        parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
+        
         if worker.verbosity:
             if self.verbose_parameters_sample:
-                parameters_str = str(worker.parameters)
-                parameters_sample = f'{parameters_str[:100]} ... {parameters_str[-100:]}'
                 self.LOGGER.info(f'Start execution with parameters (sample): {parameters_sample}')
             else:
                 self.LOGGER.info(f'Start execution with parameters: {worker.parameters}')
