@@ -254,7 +254,7 @@ def construct_features(
             insert_features_name = insert_features.list_features_name()
             
             must_have_features_name = must_have_features.list_features_name()
-            missing_cols = list_ops(must_have_features_name, dataframe)
+            missing_cols = list_ops(must_have_features_name, dataframe.columns)
             if len(missing_cols) > 0:
                 raise DataFrameMissingColumns(missing_cols)
             
@@ -272,7 +272,7 @@ def construct_features(
             response_dataframe = f(self, dataframe, *args, **kwargs)
             
             # insert_features_name = insert_features.list_features_name()
-            missing_cols = list_ops(insert_features_name, response_dataframe)
+            missing_cols = list_ops(insert_features_name, response_dataframe.columns)
             if len(missing_cols) > 0:
                 raise DataFrameMissingColumns(missing_cols)
             
