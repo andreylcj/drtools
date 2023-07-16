@@ -10,7 +10,7 @@ import numpy as np
 from pandas import DataFrame
 import pandas as pd
 from drtools.utils import list_ops
-from drtools.logs import Log
+from drtools.logging import Logger
 import ast
 # from drtools.data_science.features_handle import FeatureJSON
 
@@ -84,7 +84,7 @@ class FindOnData:
                 for idx, col_name in enumerate(self.DataColumns)
             }
         if LOGGER is None:
-            self.LOGGER = Log()
+            self.LOGGER = Logger()
         else:
             self.LOGGER = LOGGER
     
@@ -367,7 +367,7 @@ def typeraze(
     custom_treatment: List[TypeColumm]=[],
     utc: Union[bool, None]=None,
     to_numeric: bool=False,
-    LOGGER: Log=None,
+    LOGGER: Logger=None,
     **kwargs
 ) -> DataFrame:
     """Type database columns.
@@ -392,8 +392,8 @@ def typeraze(
     to_numeric : bool, optional
         If True, apply pd.to_numeric before type, 
         if False, do not apply, by default False
-    LOGGER : Log, optional
-        The Log to verbose, by default None
+    LOGGER : Logger, optional
+        The Logger to verbose, by default None
 
     Returns
     -------
