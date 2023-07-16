@@ -10,7 +10,7 @@ from pandas.core.frame import DataFrame
 import pandas as pd
 import math
 import numpy as np
-from drtools.logs import Log
+from drtools.logging import Logger
 
 
 OneDimension = int
@@ -116,7 +116,7 @@ def time_series_data_generator(
     dtype: bool=True,
     chunksize: int=1,
     return_numpy: bool=False,
-    LOGGER: Log=None
+    LOGGER: Logger=None
 ) -> DataFrame:
     """Generate data for time series prediction.py
 
@@ -155,7 +155,7 @@ def time_series_data_generator(
         , by default True.
     chunksize : int, optional
         Process by chunks, by default 1.
-    LOGGER : Log, optional
+    LOGGER : Logger, optional
         Logging object to debug execution, 
         by default None.
     

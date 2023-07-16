@@ -10,7 +10,7 @@ from pandas import DataFrame
 import pandas as pd
 from typing import List, Union, Dict, TypedDict, Any
 from drtools.utils import list_ops
-from drtools.logs import Log, FormatterOptions
+from drtools.logging import Logger, FormatterOptions
 # from drtools.data_science.model_handling import Model
 from drtools.data_science.general import typeraze
 from enum import Enum
@@ -297,13 +297,13 @@ class BaseFeatureConstructor:
         self, 
         name: str=None,
         model=None, # drtools.data_science.model_handling.Model
-        LOGGER: Log=Log(
+        LOGGER: Logger=Logger(
             name="FeatureConstructor",
             formatter_options=FormatterOptions(
-                IncludeDate=True,
-                IncludeLoggerName=True,
-                IncludeLevelName=True,
-                IncludeExecTime=False,
+                include_datetime=True,
+                include_logger_name=True,
+                include_level_name=True,
+                include_exec_time=False,
             ),
             default_start=False
         )
@@ -318,7 +318,7 @@ class BaseFeatureConstructor:
     ) -> None:
         self.model = model
         
-    def set_logger(self, LOGGER: Log) -> None:
+    def set_logger(self, LOGGER: Logger) -> None:
         self.LOGGER = LOGGER
         
     @construct_features
@@ -330,13 +330,13 @@ class BaseTransformer:
     def __init__(
         self,
         model, # drtools.data_science.model_handling.Model
-        LOGGER: Log=Log(
+        LOGGER: Logger=Logger(
             name="Transformer",
             formatter_options=FormatterOptions(
-                IncludeDate=True,
-                IncludeLoggerName=True,
-                IncludeLevelName=True,
-                IncludeExecTime=False,
+                include_datetime=True,
+                include_logger_name=True,
+                include_level_name=True,
+                include_exec_time=False,
             ),
             default_start=False
         )

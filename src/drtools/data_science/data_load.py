@@ -17,7 +17,7 @@ import os
 import joblib
 import pyarrow.parquet as pq
 from enum import Enum
-from drtools.logs import FormatterOptions, Log
+from drtools.logging import FormatterOptions, Logger
 from drtools.utils import ExpectedRemainingTimeHandle
 
 
@@ -39,11 +39,11 @@ def concat_dir(
     out_path: str, 
     verbose: int=100, 
     file_type: FileType=FileType.CSV,
-    LOGGER: Log=Log(
+    LOGGER: Logger=Logger(
         formatter_options=FormatterOptions(
-            IncludeThreadName=True,
-            IncludeDate=True,
-            IncludeLevelName=True,
+            include_thread_name=True,
+            include_datetime=True,
+            include_level_name=True,
         ),
         default_start=False
     ),

@@ -8,8 +8,8 @@ from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path
 )
-from typing import List, TypedDict, Any, Dict
-from drtools.logs import Log, FormatterOptions
+from typing import List, Any, Dict
+from drtools.logging import Logger, FormatterOptions
 from drtools.utils import (
     list_ops
 )
@@ -63,7 +63,7 @@ class BaseModel:
     @classmethod
     def init_from_json(
         cls, 
-        LOGGER: Log=None, 
+        LOGGER: Logger=None, 
         chained_assignment_log: bool=False,
         **kwargs, 
     ):
@@ -128,7 +128,7 @@ class BaseModel:
         extra_features: Features,
         training_information: Dict={},
         metrics: List=[],
-  		LOGGER: Log=None,
+  		LOGGER: Logger=None,
         chained_assignment_log: bool=False
     ) -> None:
         """Init Model instance.
@@ -137,7 +137,7 @@ class BaseModel:
         ----------
         model_catalogue_single : ModelCatalogueSingle
             The model definitions.
-        LOGGER : Log, optional
+        LOGGER : Logger, optional
             The LOGGER instance to handle logs 
             , by default None
         chained_assignment_log : bool, optional
@@ -154,12 +154,12 @@ class BaseModel:
         self.extra_features = extra_features
         self.training_information = training_information
         self.metrics = metrics
-        self.LOGGER = Log(
+        self.LOGGER = Logger(
                 name=f"Model-{self.model_name}",
                 formatter_options=FormatterOptions(
-                    IncludeDate=True,
-                    IncludeLoggerName=True,
-                    IncludeLevelName=True,
+                    include_datetime=True,
+                    include_logger_name=True,
+                    include_level_name=True,
                 ),
             ) if LOGGER is None else LOGGER
         if not chained_assignment_log:
@@ -448,7 +448,7 @@ class ModelHandler:
     def smart_load_model(
         cls,
         model_definition: Dict,
-        LOGGER: Log=None, 
+        LOGGER: Logger=None, 
         chained_assignment_log: bool=False,
     ) -> BaseModel:
         if model_definition['algorithm'] == Algorithm.LIGHTGBM.name:

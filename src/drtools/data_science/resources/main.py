@@ -23,7 +23,7 @@ import drtools.data_science.data_handle as DataHandle
 import drtools.utils as Utils
 from typing import List, Union, Optional, Dict, TypedDict, Any
 from types import FunctionType
-from drtools.logs import Log
+from drtools.logging import Logger
 from drtools.utils import list_ops
 from pathlib import Path
 from pydbml import PyDBML
@@ -185,7 +185,7 @@ def typeraze(
     custom_treatment: List[TypeColumm]=[],
     utc: Union[bool, None]=None,
     to_numeric: bool=False,
-    LOGGER: Log=None,
+    LOGGER: Logger=None,
     **kwargs
 ) -> DataFrame:
     """Type database columns.
@@ -210,8 +210,8 @@ def typeraze(
     to_numeric : bool, optional
         If True, apply pd.to_numeric before type, 
         if False, do not apply, by default False
-    LOGGER : Log, optional
-        The Log to verbose, by default None
+    LOGGER : Logger, optional
+        The Logger to verbose, by default None
 
     Returns
     -------
@@ -411,7 +411,7 @@ class Model:
     def __init__(
         self,
         model_catalogue_single: ModelCatalogueSingle,
-  		LOGGER: Log=None,
+  		LOGGER: Logger=None,
         chained_assignment_log: bool=False
     ) -> None:
         """Init Model instance.
@@ -420,7 +420,7 @@ class Model:
         ----------
         model_catalogue_single : ModelCatalogueSingle
             The model definitions.
-        LOGGER : Log, optional
+        LOGGER : Logger, optional
             The LOGGER instance to handle logs 
             , by default None
         chained_assignment_log : bool, optional
@@ -1075,7 +1075,7 @@ class Database(ABC):
         self,
         database_dbml_path: str,
         database_root_path: str,
-  		LOGGER: Log=None,
+  		LOGGER: Logger=None,
     ) -> None:
         """Init Database instance.
 
@@ -1085,7 +1085,7 @@ class Database(ABC):
             Path to .dbml database documentation.
         database_root_path : str
             Path to root of database.
-        LOGGER : Log, optional
+        LOGGER : Logger, optional
             The LOGGER instance to handle logs 
             , by default None
         """
