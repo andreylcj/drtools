@@ -264,7 +264,8 @@ def save_json(
     data: any, 
     path: str,
     indent: int=4,
-    sort_keys: bool=False
+    sort_keys: bool=False,
+    overwrite: bool=False
 ) -> None:
     """Save JSON file.
 
@@ -290,7 +291,8 @@ def save_json(
         If path already exists.
     """
     
-    if os.path.exists(path):
+    if os.path.exists(path) \
+    and not overwrite:
         raise Exception('Path already exists.')
     
     create_directories_of_path(path)
