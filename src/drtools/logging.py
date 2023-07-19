@@ -60,10 +60,21 @@ class FormatterOptions:
     ) -> None:
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
-        self._start_default_settings()
+        
+        start_default = True
+        for k, v in args.items():
+            if v is not None:
+                start_default = False
+                break
+            
+        if start_default:
+            self._start_default_settings()
+            
         for k, v in args.items():
             if v is not None:
                 setattr(self, k, v)
+            else:
+                setattr(self, k, False)
 
     def _start_default_settings(self):
         self.include_thread_name = True

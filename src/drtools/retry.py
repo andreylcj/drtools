@@ -111,7 +111,7 @@ class RetryHandler:
     
     @property
     def retry_name(self) -> str:
-        return self.retry_config.name.rjust(10, " ")
+        return self.name.rjust(10, " ")
     
     def _prepare_error_txt(
         self,
@@ -126,23 +126,23 @@ class RetryHandler:
         format_args = [
             self.retry_name, 
             attempts, 
-            self.retry_config.max_retry_attempts
+            self.max_retry_attempts
         ]
             
         log_txt += " after {}s: {} - sleeping for {}s and will retry."
         format_args = format_args + [duration, exception_txt, sleep_for]
         
-        if self.retry_config.log_includes_traceback:
+        if self.log_includes_traceback:
             log_txt = log_txt + "\n{}"
             format_args.append(traceback_txt)
         
         if extra_information:
-            if self.retry_config.log_includes_traceback:
+            if self.log_includes_traceback:
                 log_txt += "\n\n"
             else:
                 log_txt += " "
             log_txt += "Extra Information: {}"
-            if self.retry_config.log_includes_traceback:
+            if self.log_includes_traceback:
                 log_txt += "\n"
             format_args.append(extra_information)
         
@@ -155,7 +155,7 @@ class RetryHandler:
         attempts: int, 
         extra_information: Any=None,
     ):
-        log_txt = f"[{self.retry_name}] Success after #{attempts:,} from a total of #{self.retry_config.max_retry_attempts} attempts."
+        log_txt = f"[{self.retry_name}] Success after #{attempts:,} from a total of #{self.max_retry_attempts} attempts."
         if extra_information:
             log_txt += f" Extra Information: {extra_information}"
         return log_txt
@@ -166,7 +166,7 @@ class RetryHandler:
         requesting_process_failed = True
         attempts = 0
         
-        while attempts < self.retry_config.max_retry_attempts \
+        while attempts < self.max_retry_attempts \
         and requesting_process_failed:
             
             attempts += 1
@@ -200,8 +200,8 @@ class RetryHandler:
                     duration = round((datetime.now() - started_at).total_seconds(), 4)
                     sleep_for = compute_retry_wait_time(
                         attempts=attempts, 
-                        retry_wait_time=self.retry_config.retry_wait_time, 
-                        retry_type=self.retry_config.retry_type
+                        retry_wait_time=self.retry_wait_time, 
+                        retry_type=self.retry_type
                     )
                     log_txt = self._prepare_error_txt(
                         attempts=attempts,
