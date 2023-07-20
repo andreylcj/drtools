@@ -248,12 +248,20 @@ class BaseFeatureConstructor:
         self._startup()
     
     def _startup(self):
-        # if isinstance(self.features, Feature):
-        #     self.features = Features([self.features])
+        self._original_features_is_Feature = None
+        self._original_must_have_features_is_Feature = None
+        
+        if isinstance(self.features, Feature):
+            self.features = Features([self.features])
+            self._original_features_is_Feature = True
+        elif isinstance(self.features, Features):
+            self._original_features_is_Feature = False
             
-        # if isinstance(self.must_have_features, Feature):
-        #     self.must_have_features = Features([self.must_have_features])
-        return
+        if isinstance(self.must_have_features, Feature):
+            self.must_have_features = Features([self.must_have_features])
+            self._original_must_have_features_is_Feature = True  
+        elif isinstance(self.must_have_features, Features):
+            self._original_must_have_features_is_Feature = False
     
     def set_model(
         self, 
@@ -265,24 +273,24 @@ class BaseFeatureConstructor:
         self.LOGGER = LOGGER
         
     def _get_features_name(self) -> List[str]:
-        features_name = None
-        if not isinstance(self.features, Features):
-            features_name = self.features.list_features_name()            
-        elif not isinstance(self.features, Feature):
-            features_name = [self.features.name]
-        else:
-            raise Exception("Provided features param is not valid.")
-        return features_name
+        # features_name = None
+        # if not isinstance(self.features, Features):
+        #     features_name = self.features.list_features_name()            
+        # elif not isinstance(self.features, Feature):
+        #     features_name = [self.features.name]
+        # else:
+        #     raise Exception("Provided features param is not valid.")
+        return self.features.list_features_name()  
         
     def _get_must_have_features_name(self) -> List[str]:
-        must_have_features_names = None
-        if not isinstance(self.must_have_features, Features):
-            must_have_features_names = self.must_have_features.list_features_name()            
-        elif not isinstance(self.must_have_features, Feature):
-            must_have_features_names = [self.must_have_features.name]
-        else:
-            raise Exception("Provided must_have_features param is not valid.")
-        return must_have_features_names
+        # must_have_features_names = None
+        # if not isinstance(self.must_have_features, Features):
+        #     must_have_features_names = self.must_have_features.list_features_name()            
+        # elif not isinstance(self.must_have_features, Feature):
+        #     must_have_features_names = [self.must_have_features.name]
+        # else:
+        #     raise Exception("Provided must_have_features param is not valid.")
+        return self.must_have_features.list_features_name()  
     
     def verbose(self, pre_validate: bool):
         features_name = self._get_features_name()
@@ -300,8 +308,8 @@ class BaseFeatureConstructor:
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
-        if not isinstance(self.features, Features):
-            raise Exception("In DataFrame mode you must provide features: Features.")
+        if self._original_must_have_features_is_Feature is None:
+            raise Exception("Provided features parameter on BaseFeatureConstructor.__init__() must be Union[Features, Feature].")
         
         if len(missing_cols) > 0:
             raise DataFrameMissingColumns(missing_cols)
@@ -331,8 +339,8 @@ class BaseFeatureConstructor:
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
-        if not isinstance(self.features, Feature):
-            raise Exception("In Series mode you must provide features: Feature.")
+        if self._original_features_is_Feature is not True:
+            raise Exception("Provided features parameter on BaseFeatureConstructor.__init__() must be Feature.")
         
         if len(missing_cols) > 0:
             raise DataFrameMissingColumns(missing_cols)
@@ -586,7 +594,95 @@ class BaseFeaturesTyping:
             feature_type_to_features[feature.type].add_feature(features)
         return feature_type_to_features
             
-    def _type(self, dataframe: DataFrame) -> DataFrame:
+    def typing(self, dataframe: DataFrame) -> DataFrame:
+        raise Exception("Must be implemented.")               
+    
+    def type(self, dataframe: DataFrame):
+        self._pre_validate(dataframe)
+        response_dataframe = self.typing(dataframe)
+        self._post_validate(response_dataframe)
+        return response_dataframe
+
+
+class FeaturesTyping(BaseFeaturesTyping):
+    
+    def typing(self, dataframe: DataFrame) -> DataFrame:
+        for feature_type, features in self._feature_type_to_features.items():
+            
+            if feature_type is FeatureType.STR:
+                dataframe = StringTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.INT:
+                dataframe = Int64Typing(features).type(dataframe)                
+                
+            elif feature_type is FeatureType.FLOAT:
+                dataframe = FloatTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.DATETIME:
+                dataframe = DatetimeTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.DATETIMEUTC:
+                dataframe = DatetimeUTCTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.TIMESTAMP:
+                dataframe = DatetimeTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.JSONB:
+                dataframe = ObjectTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.OBJECT:
+                dataframe = ObjectTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.BOOLEAN:
+                dataframe = BooleanTyping(features).type(dataframe)
+            
+            else:
+                raise Exception(f"Feature Type {feature_type} not supported.")
+            
+        return dataframe 
+
+
+class LightFeaturesTyping(BaseFeaturesTyping):
+    
+    def typing(self, dataframe: DataFrame) -> DataFrame:
+        for feature_type, features in self._feature_type_to_features.items():
+            
+            if feature_type is FeatureType.STR:
+                dataframe = StringTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.INT:
+                dataframe = Int64TypingLight(features).type(dataframe)                
+                
+            elif feature_type is FeatureType.FLOAT:
+                dataframe = FloatTypingLight(features).type(dataframe)
+                
+            elif feature_type is FeatureType.DATETIME:
+                dataframe = DatetimeTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.DATETIMEUTC:
+                dataframe = DatetimeUTCTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.TIMESTAMP:
+                dataframe = DatetimeTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.JSONB:
+                dataframe = ObjectTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.OBJECT:
+                dataframe = ObjectTyping(features).type(dataframe)
+                
+            elif feature_type is FeatureType.BOOLEAN:
+                dataframe = BooleanTyping(features).type(dataframe)
+            
+            else:
+                raise Exception(f"Feature Type {feature_type} not supported.")
+            
+        return dataframe 
+
+
+class SmartFeaturesTyping(BaseFeaturesTyping):
+    
+    def typing(self, dataframe: DataFrame) -> DataFrame:
         for feature_type, features in self._feature_type_to_features.items():
             
             if feature_type is FeatureType.STR:
@@ -618,25 +714,8 @@ class BaseFeaturesTyping:
             
             else:
                 raise Exception(f"Feature Type {feature_type} not supported.")
-                
-    
-    def type(self, dataframe: DataFrame):
-        self._pre_validate(dataframe)
-        response_dataframe = self._type(dataframe)
-        self._post_validate(response_dataframe)
-        return response_dataframe
-
-
-class FeaturesTyping(BaseFeaturesTyping):
-    pass
-
-
-class LightFeaturesTyping(BaseFeaturesTyping):
-    pass
-
-
-class SmartFeaturesTyping(BaseFeaturesTyping):
-    pass
+            
+        return dataframe 
 
 
 class BaseTransformer:
