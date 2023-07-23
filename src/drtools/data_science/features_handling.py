@@ -14,7 +14,7 @@ from drtools.logging import Logger, FormatterOptions
 # from drtools.data_science.model_handling import Model
 from drtools.data_science.general import typeraze
 from enum import Enum
-import numpy as np
+from copy import deepcopy
 
 
 ColumnName = str
@@ -205,8 +205,6 @@ class BaseFeatureConstructor:
         self, 
         features: Union[Features, Feature],
         must_have_features: Union[Features, Feature]=Features(),
-        # type_features: bool=False,
-        # type_must_have_features: bool=False,
         verbosity: bool=True,
         name: str=None,
         pre_validate: bool=True,
@@ -228,8 +226,6 @@ class BaseFeatureConstructor:
     ) -> None:
         self.features = features
         self.must_have_features = must_have_features
-        # self.type_features = type_features
-        # self.type_must_have_features = type_must_have_features
         self.verbosity = verbosity
         self.name = name
         self.pre_validate = pre_validate
@@ -254,12 +250,14 @@ class BaseFeatureConstructor:
         if isinstance(self.features, Feature):
             self.features = Features([self.features])
             self._original_features_is_Feature = True
+            
         elif isinstance(self.features, Features):
             self._original_features_is_Feature = False
             
         if isinstance(self.must_have_features, Feature):
             self.must_have_features = Features([self.must_have_features])
             self._original_must_have_features_is_Feature = True  
+            
         elif isinstance(self.must_have_features, Features):
             self._original_must_have_features_is_Feature = False
     
@@ -389,7 +387,7 @@ class BaseFeatureTyping(BaseFeatureConstructor):
     def __init__(
         self, 
         features: Union[Features, Feature],
-        verbosity: bool=True,
+        verbosity: bool=False,
         name: str=None,
         LOGGER: Logger=Logger(
             name="BaseFeatureTyping",
@@ -401,17 +399,13 @@ class BaseFeatureTyping(BaseFeatureConstructor):
             default_start=False
         )
     ):
-        super(BaseFeatureConstructor, self).__init__(
+        super(BaseFeatureTyping, self).__init__(
             features=features,
-            must_have_features=features,
+            must_have_features=deepcopy(features),
             verbosity=verbosity,
             name=name,
-            LOGGER=LOGGER,
+            LOGGER=LOGGER
         )
-        self._startup()
-    
-    def _startup(self):
-        pass
     
     def constructor(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
         return self.typing(dataframe, *args, **kwargs)

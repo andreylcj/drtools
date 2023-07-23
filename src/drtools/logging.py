@@ -69,12 +69,12 @@ class FormatterOptions:
             
         if start_default:
             self._start_default_settings()
-            
-        for k, v in args.items():
-            if v is not None:
-                setattr(self, k, v)
-            else:
-                setattr(self, k, False)
+        else:
+            for k, v in args.items():
+                if v is not None:
+                    setattr(self, k, v)
+                else:
+                    setattr(self, k, False)
 
     def _start_default_settings(self):
         self.include_thread_name = True

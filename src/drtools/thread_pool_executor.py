@@ -15,6 +15,9 @@ import traceback
 WorkerData = any
 """any: Worker data can be any type of data."""
 
+WorkerResponse = any
+"""any: Worker data can be any type of data."""
+
 
 class Worker:
     def __init__(
@@ -31,13 +34,12 @@ class Worker:
 class ThreadConfig:
     def __init__(
         self,
-		exec_func: Callable, 
-		worker_data: List[WorkerData], 
 		max_workers: int=5, 
 		verbose: int=100,
-		verbose_parameters_sample: bool=False,
+		verbose_parameters_sample: bool=True,
 		direct: bool=True,
 		log_traceback: bool=False,
+		archive_worker_response: bool=False,
         LOGGER: Logger=Logger(
             name='ThreadPoolExecutorMain',
             formatter_options=FormatterOptions(
@@ -48,13 +50,12 @@ class ThreadConfig:
             default_start=False
         )
     ) -> None:
-        self.exec_func = exec_func
-        self.worker_data = worker_data
         self.max_workers = max_workers
         self.verbose = verbose
         self.verbose_parameters_sample = verbose_parameters_sample
         self.direct = direct
         self.log_traceback = log_traceback
+        self.archive_worker_response = archive_worker_response
         self.LOGGER = LOGGER
 
 
@@ -62,17 +63,21 @@ class ThreadPoolExecutor:
     
     def __init__(
         self,
+		exec_func: Callable,
+		worker_data: List[WorkerData],
         thread_config: ThreadConfig
     ) -> None:
-        self.exec_func = thread_config.exec_func
-        self.worker_data = thread_config.worker_data
+        self.exec_func = exec_func
+        self.worker_data = worker_data
         self.max_workers = thread_config.max_workers
         self.verbose = thread_config.verbose
         self.verbose_parameters_sample = thread_config.verbose_parameters_sample
         self.direct = thread_config.direct
         self.log_traceback = thread_config.log_traceback
+        self.archive_worker_response = thread_config.archive_worker_response
         self.LOGGER = thread_config.LOGGER
         self.total_worker_data_len = len(self.worker_data)
+        self._worker_responses = []
         
     def start(self) -> None:
         """Start Thread Pool Execution."""
@@ -85,9 +90,12 @@ class ThreadPoolExecutor:
             return None
         
         self.LOGGER.info('Starting Thread Pool Execution...')
+        self._worker_responses = []
         self._start() 
         self.LOGGER.info('Thread Pool Execution Finished.')
-        
+    
+    def get_worker_responses(self) -> List[WorkerResponse]:
+        return self._worker_responses
         
     def _start(self) -> None:
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -150,7 +158,7 @@ class ThreadPoolExecutor:
         
         try:
             func_parameters = worker.parameters if self.direct else worker
-            func_response = self.exec_func(func_parameters)
+            func_response: WorkerResponse = self.exec_func(func_parameters)
             
             if worker.verbosity:
                 log_text = f'Succesful execution! Execution response: '
@@ -163,6 +171,9 @@ class ThreadPoolExecutor:
                 self.LOGGER.info(log_text)
         
         except Exception as exc:
+            
+            func_response: WorkerResponse = exc
+            
             if self.verbose_parameters_sample:
                 self.LOGGER.error(f'Execution with parameters (sample): {parameters_sample} generate an exception: {exc}')
             else:
@@ -175,3 +186,7 @@ class ThreadPoolExecutor:
             if worker.verbosity:
                 time_diff = (datetime.now() - started_at).total_seconds()
                 self.LOGGER.info(f"Execution ends in {time_diff}s.")
+                
+        # append worker response
+        if self.archive_worker_response:
+            self._worker_responses.append(func_response)
