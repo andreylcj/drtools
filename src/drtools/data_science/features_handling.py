@@ -364,7 +364,7 @@ class BaseFeatureConstructor:
     ) -> DataFrame:
         
         if LOGGER is not None:
-            self.LOGGER = LOGGER
+            self.set_logger(LOGGER)
         
         if self.pre_validate:
             self._pre_validate(dataframe, **kwargs)
@@ -384,7 +384,7 @@ class BaseFeatureConstructor:
     ) -> Series:
         
         if LOGGER is not None:
-            self.LOGGER = LOGGER
+            self.set_logger(LOGGER)
                 
         if self.spre_validate:
             self._spre_validate(dataframe, **kwargs)
@@ -626,6 +626,9 @@ class BaseMultiFeatureTyping:
         self.LOGGER = LOGGER
         self._feature_type_to_features: Dict[FeatureType, Features] \
             = self._group_features_by_typing_method()
+        
+    def set_logger(self, LOGGER: Logger) -> None:
+        self.LOGGER = LOGGER
     
     def _pre_validate(self, dataframe: DataFrame):
         feature_names = self.features.list_features_name()
@@ -652,7 +655,9 @@ class BaseMultiFeatureTyping:
     def typing(self, dataframe: DataFrame) -> DataFrame:
         raise NotImplementedError
     
-    def type(self, dataframe: DataFrame):
+    def type(self, dataframe: DataFrame, LOGGER: Logger=None):
+        if LOGGER is not None:
+            self.set_logger(LOGGER)
         self._pre_validate(dataframe)
         response_dataframe = self.typing(dataframe)
         self._post_validate(response_dataframe)
