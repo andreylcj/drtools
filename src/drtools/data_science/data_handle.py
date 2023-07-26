@@ -6,7 +6,7 @@ pandas DataFrame or pandas Series.
 
 
 from drtools.utils import list_ops
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 from pandas import DataFrame, Series, cut
 from scipy import stats
 import numpy as np
@@ -153,7 +153,7 @@ ColumnInfo = dict({
 def keep_categories(
     df: DataFrame,
     col_name: str,
-    keep_categories: List[str]=[]
+    keep_categories: Optional[List[str]]=None
 ) -> DataFrame:
     """Keep only selected categories from column of DataFrame.
 
@@ -172,6 +172,9 @@ def keep_categories(
         The DataFrame after remove unselected categories and keeped
         selected categories
     """
+    if keep_categories is None:
+        keep_categories = []
+    
     df_copy = df[col_name].isin(
         keep_categories
     )
@@ -181,7 +184,7 @@ def keep_categories(
 def join_categories(
     dataframe: DataFrame,
     col_name: str,
-    categories: List[str]=[], 
+    categories: Optional[List[str]]=None, 
     to_category: str='others'
 ) -> DataFrame:
     """Join categories and fill these values with desired value.
@@ -202,6 +205,9 @@ def join_categories(
     DataFrame
         The DataFrame after join the categories
     """
+    if categories is None:
+        categories = []
+    
     df = dataframe.copy()
     if len(categories) == 0:
         return df
@@ -213,7 +219,7 @@ def join_categories(
 def keep_categories_and_join_remaining(
     dataframe: DataFrame,
     column: str,
-    categories: List[str]=[], 
+    categories: List[str]=None, 
     to_category: str='others'
 ) -> DataFrame:
     """Join categories and fill these values with desired value.
@@ -234,6 +240,9 @@ def keep_categories_and_join_remaining(
     DataFrame
         The DataFrame after join the categories
     """
+    if categories is None:
+        categories = []
+        
     df = dataframe.copy()
     if len(categories) == 0:
         return df
@@ -280,7 +289,7 @@ def get_categories_ge(
     col_name: str,
     by: Union[ByPercentage, ByCount]=ByPercentage,
     value: float=0.01,
-    ignore_categories: List[str]=[]
+    ignore_categories: List[str]=None
 ) -> List[str]:
     """Get name of categories that contains percentage or counts 
     of total samples greater or equal than value.
@@ -305,6 +314,9 @@ def get_categories_ge(
     List[str]
         The list of categories with at least desired percentage of total
     """
+    if ignore_categories is None:
+        ignore_categories = []
+        
     resp = []
     v = df[col_name].value_counts()
     col_len = df[col_name].notna().sum()
@@ -507,7 +519,7 @@ def keep_categories_ge(
     col_name: str,
     by: Union[ByPercentage, ByCount]=ByPercentage,
     value: float=0.01,
-    force_remove: List[str]=[]
+    force_remove: List[str]=None
 ) -> DataFrame:
     """Keep categories of 'col_name' which contains 
     percentage or counts greater or equal than 'value'.
@@ -534,6 +546,9 @@ def keep_categories_ge(
     DataFrame
         DataFrame with only desired categories
     """
+    
+    if force_remove is None:
+        force_remove = []
     
     keep_categories = get_categories_ge(
         df, 
@@ -577,7 +592,7 @@ def na_percentage_of_column(
 
 def percentage_of_most_common_value_by_column(
     df: DataFrame,
-    ignore_columns: List[str]=[],
+    ignore_columns: List[str]=None,
     notna: bool=False
 ) -> ColumnInfo:
     """Percentage of the most common value for each column.
@@ -599,6 +614,8 @@ def percentage_of_most_common_value_by_column(
         Dict containing information about percentage of most common
         value from each column.
     """
+    if ignore_columns is None:
+        ignore_columns = []
     
     resp = {}
     for col in df.columns:
@@ -621,7 +638,7 @@ def percentage_of_most_common_value_by_column(
 
 def na_percentage_info(
     df: DataFrame,
-    ignore_columns: List[str]=[]
+    ignore_columns: List[str]=None
 ) -> ColumnInfo:
     """Get percentage of null of all columns.
 
@@ -637,6 +654,8 @@ def na_percentage_info(
     ColumnInfo
         Information of null percentage about each column
     """
+    if ignore_columns is None:
+        ignore_columns = []
     
     resp = {}
     for col in df.columns:
@@ -650,7 +669,7 @@ def na_percentage_info(
 
 def get_column_names(
     df: DataFrame,
-    contains: List[str]=[]
+    contains: List[str]=None
 ) -> List[str]:
     """Get name of columns that contains some of substrings in 'contains'
 
@@ -667,6 +686,8 @@ def get_column_names(
         The list of column names which has some of the substrings
         in 'contains'
     """
+    if contains is None:
+        contains = []
     
     names = []
     if len(contains) == 0:

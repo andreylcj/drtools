@@ -968,13 +968,13 @@ def to_dict(
     obj: Any,
     ignore_meta_when_expanded: bool=True,
     self_class_name: str="self",
-    ignore_attr: List[str]=[],
-    ignore_abs_name_spaces: List[str]=[],
-    custom_treatment_namespaces: List[CustomTreatment]=[],
-    custom_treatment_types: List[CustomTreatment]=[],
-    custom_treatment_obj_is: List[CustomTreatment]=[],
-    custom_treatment_obj_eq: List[CustomTreatment]=[],
-    custom_treatment_conditional: List[CustomTreatment]=[],
+    ignore_attr: Optional[List[str]]=None,
+    ignore_abs_name_spaces: Optional[List[str]]=None,
+    custom_treatment_namespaces: Optional[List[CustomTreatment]]=None,
+    custom_treatment_types: Optional[List[CustomTreatment]]=None,
+    custom_treatment_obj_is: Optional[List[CustomTreatment]]=None,
+    custom_treatment_obj_eq: Optional[List[CustomTreatment]]=None,
+    custom_treatment_conditional: Optional[List[CustomTreatment]]=None,
     ignore_exceptions: bool=False,
     exception_handler: Callable=None,
     depth_limit: int=5
@@ -991,6 +991,28 @@ def to_dict(
     Dict
         The Dict representation of object.
     """
+    
+    if ignore_attr is None:
+        ignore_attr = []
+
+    if ignore_abs_name_spaces is None:
+        ignore_abs_name_spaces = []
+
+    if custom_treatment_namespaces is None:
+        custom_treatment_namespaces = []
+
+    if custom_treatment_types is None:
+        custom_treatment_types = []
+
+    if custom_treatment_obj_is is None:
+        custom_treatment_obj_is = []
+
+    if custom_treatment_obj_eq is None:
+        custom_treatment_obj_eq = []
+
+    if custom_treatment_conditional is None:
+        custom_treatment_conditional = []
+
     
     expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
     

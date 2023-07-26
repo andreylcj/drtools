@@ -228,7 +228,7 @@ class Logger:
             
         formatter_text += '%(message)s'
         
-        formatter = logging.Formatter(formatter_text, datefmt='%d-%m-%Y %H:%M:%S')
+        formatter = logging.Formatter(formatter_text, datefmt='%Y-%m-%d %H:%M:%S')
         
         return formatter
     

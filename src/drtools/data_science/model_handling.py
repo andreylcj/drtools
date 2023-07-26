@@ -13,8 +13,8 @@ from drtools.logging import Logger, FormatterOptions
 from drtools.utils import (
     list_ops
 )
-from drtools.data_science.features_handle import (
-    ExtendedFeatureJSON, Categorical, Features, Feature, FeatureType
+from drtools.data_science.features_handling import (
+    Categorical, Features, Feature, FeatureType
 )
 from enum import Enum
 
@@ -126,8 +126,8 @@ class BaseModel:
         input_features: Features,
         output_features: Features,
         extra_features: Features,
-        training_information: Dict={},
-        metrics: List=[],
+        training_information: Dict=None,
+        metrics: List=None,
   		LOGGER: Logger=None,
         chained_assignment_log: bool=False
     ) -> None:
@@ -144,6 +144,12 @@ class BaseModel:
             If False, put pandas chained assignment equals None, 
             If True, do not change anything, by default False.
         """
+        if training_information is None:
+            training_information = {}
+            
+        if metrics is None:
+            metrics = []
+        
         self.name = name
         self.version = version
         self.algorithm_infrastructure = algorithm_infrastructure

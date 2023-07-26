@@ -144,10 +144,12 @@ class Legend:
         self,
         active: bool=False,
         title: str='',
-        labels: List[str]=[],
+        labels: List[str]=None,
         loc='upper right',
         bbox_to_anchor: Tuple[float, float]=None,
     ) -> None:
+        if labels is None:
+            labels = []
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
         for k, v in args.items():
@@ -188,8 +190,8 @@ class Twinx:
     def __init__(
         self,  
         active: bool=False,
-        x: Union[List, Series]=[],
-        y: Union[List, Series]=[],
+        x: Union[List, Series]=None,
+        y: Union[List, Series]=None,
         ylabel: str='Twinx Axe',
         ylim: Tuple[float, float]=(0, 1),
         color: str='tab:olive',
@@ -214,7 +216,10 @@ class Twinx:
         #     text = 'If "active" is True, "twinx_values_calculation.apply" '
         #     text += 'or "twinx_values_calculation.agg" need to be specified.'
         #     raise Exception(text)  
-             
+        if x is None:
+            x = []
+        if y is None:
+            y = []
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
         for k, v in args.items():
@@ -265,11 +270,9 @@ def bar(
     figsize: Tuple[int, int]=(10, 5),
     fillna: float=0,
     na_as_class: bool=False,
-    ignore_columns: List=[],
-    sort_index_attr: dict={
-        'ascending': True
-    },
-    sort_values_attr: dict={},
+    ignore_columns: List=None,
+    sort_index_attr: dict=None,
+    sort_values_attr: dict=None,
     rotate_x: int=0,
     twinx: Union[Twinx, List[Twinx]]=Twinx(),
     legend: Legend=Legend(
@@ -318,6 +321,14 @@ def bar(
     None
         **None** is returned
     """
+    if sort_index_attr is None:
+        sort_index_attr = {'ascending': True}
+        
+    if sort_values_attr is None:
+        sort_values_attr = {}
+    
+    if ignore_columns is None:
+        ignore_columns = []
     
     sns.set_style('darkgrid')
     df = dataframe.copy()

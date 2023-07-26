@@ -8,7 +8,7 @@ other stuff related to features from Machine Learn Model.
 from drtools.utils import list_ops
 from pandas import DataFrame, Series
 import pandas as pd
-from typing import List, Union, Dict, TypedDict, Any, Callable
+from typing import List, Union, Dict, TypedDict, Any, Callable, Optional
 from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
 # from drtools.data_science.model_handling import Model
@@ -112,22 +112,31 @@ class DataFrameDiffLength(Exception):
         
 
 class FeatureType(Enum):
-    STR = "str"
-    INT = "int"
-    FLOAT = "float"
-    DATETIME = "datetime"
-    DATETIMEUTC = "datetime[utc]"
-    TIMESTAMP = "timestamp"
-    JSONB = "JSONB"
-    OBJECT = "object"
-    BOOLEAN = "boolean"
+    STR = "str", "String"
+    INT = "int", "Integer"
+    FLOAT = "float", "Float"
+    DATETIME = "datetime", "Datetime"
+    DATETIMEUTC = "datetime[utc]", "Datetime UTC"
+    TIMESTAMP = "timestamp", "Timestamp"
+    JSONB = "JSONB", "JSONB"
+    OBJECT = "object", "Object"
+    BOOLEAN = "boolean", "Boolean"
+    
+    @property
+    def name(self) -> str:
+        return self.value[1]
+    
+    @property
+    def code(self) -> str:
+        return self.value[1]
     
     @classmethod
     def smart_instantiation(cls, value):
-        obj = getattr(cls, value, None)
+        upper_str_val = str(value).upper()
+        obj = getattr(cls, upper_str_val, None)
         if obj is None:
             for feature_type in cls:
-                if feature_type.value == value:
+                if feature_type.code.upper() == upper_str_val:
                     obj = feature_type
                     break
         if obj is None:
@@ -179,24 +188,29 @@ class Feature:
 
 
 class Features:
-    def __init__(self, features: List[Feature]=[]) -> None:
-        self.features = features
+    def __init__(
+        self, 
+        features: Optional[List[Feature]]=None
+    ) -> None:
+        if features is None:
+            features = []
+        self._features = features
         
     def list_features_name(self) -> List[str]:
-        return [x.name for x in self.features]
+        return [x.name for x in self._features]
     
     def append_features(self, features: List[Feature]) -> None:
-        self.features = self.features + features
+        self._features = self._features + features
     
     def list_features(self) -> List[Feature]:
-        return self.features
+        return self._features
     
     def add_feature(self, feature: Feature):
-        self.features.append(feature)
+        self._features.append(feature)
     
     @property
     def info(self) -> List[Dict]:
-        return [feature.info for feature in self.features]
+        return [feature.info for feature in self._features]
 
 
 class BaseFeatureConstructor:
@@ -271,23 +285,9 @@ class BaseFeatureConstructor:
         self.LOGGER = LOGGER
         
     def _get_features_name(self) -> List[str]:
-        # features_name = None
-        # if not isinstance(self.features, Features):
-        #     features_name = self.features.list_features_name()            
-        # elif not isinstance(self.features, Feature):
-        #     features_name = [self.features.name]
-        # else:
-        #     raise Exception("Provided features param is not valid.")
         return self.features.list_features_name()  
         
     def _get_must_have_features_name(self) -> List[str]:
-        # must_have_features_names = None
-        # if not isinstance(self.must_have_features, Features):
-        #     must_have_features_names = self.must_have_features.list_features_name()            
-        # elif not isinstance(self.must_have_features, Feature):
-        #     must_have_features_names = [self.must_have_features.name]
-        # else:
-        #     raise Exception("Provided must_have_features param is not valid.")
         return self.must_have_features.list_features_name()  
     
     def verbose(self, pre_validate: bool):
@@ -429,13 +429,25 @@ class BaseFeatureTyping(BaseFeatureConstructor):
 
 class StringTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+        blank: bool = kwargs.pop("blank", True)
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .astype(pd.StringDtype())
+        if not blank:
+            dataframe[self._get_features_name()] \
+                = dataframe[self._get_features_name()] \
+                    .replace({"": None}) \
+                    .astype(pd.StringDtype())
         return dataframe
     
     def styping(self, series: Series, *args, **kwargs) -> Series:
-        return series.astype(pd.StringDtype())
+        blank: bool = kwargs.pop("blank", True)
+        series_response: Series = series.astype(pd.StringDtype())
+        if not blank:
+            series_response = series_response.astype(pd.StringDtype()) \
+                .replace({"": None}) \
+                .astype(pd.StringDtype())
+        return series_response
     
     
 class DatetimeUTCTyping(BaseFeatureTyping):
@@ -483,23 +495,22 @@ class Int64Typing(BaseFeatureTyping):
         return pd.to_numeric(series, errors='coerce').astype(pd.Int64Dtype())
     
 
-class Int64TypingSmart(Int64TypingLight, Int64Typing):
+class Int64TypingSmart(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
         try:
-            dataframe = super(Int64TypingLight, self).typing(dataframe, *args, **kwargs)
+            dataframe = Int64TypingLight(self.features).typing(dataframe, *args, **kwargs)
         except Exception as exc:
-            self.LOOGER.debug('Error typing using Light method, executing normal typing.')
-        dataframe = super(Int64Typing, self).typing(dataframe, *args, **kwargs)
+            self.LOGGER.debug('Error typing using Light method, executing normal typing.')
+        dataframe = Int64Typing(self.features).typing(dataframe, *args, **kwargs)
         return dataframe
     
     def styping(self, series: Series, *args, **kwargs) -> Series:
         try:
-            series = super(Int64TypingLight, self).styping(series, *args, **kwargs)
+            series = Int64TypingLight(self.features).styping(series, *args, **kwargs)
         except Exception as exc:
-            self.LOOGER.debug('Error typing using Light method, executing normal typing.')
-        series = super(Int64Typing, self).styping(series, *args, **kwargs)
-        return series
-    
+            self.LOGGER.debug('Error typing using Light method, executing normal typing.')
+        series = Int64Typing(self.features).styping(series, *args, **kwargs)
+        return series    
 
 
 class FloatTypingLight(BaseFeatureTyping):
@@ -525,21 +536,21 @@ class FloatTyping(BaseFeatureTyping):
         return pd.to_numeric(series, errors='coerce').astype('float')
     
 
-class FloatTypingSmart(FloatTypingLight, FloatTyping):
+class FloatTypingSmart(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
         try:
-            dataframe = super(FloatTypingLight, self).typing(dataframe, *args, **kwargs)
+            dataframe = FloatTypingLight(self.features).typing(dataframe, *args, **kwargs)
         except Exception as exc:
-            self.LOOGER.debug('Error typing using Light method, executing normal typing.')
-        dataframe = super(FloatTyping, self).typing(dataframe, *args, **kwargs)
+            self.LOGGER.debug('Error typing using Light method, executing normal typing.')
+        dataframe = FloatTyping(self.features).typing(dataframe, *args, **kwargs)
         return dataframe
     
     def styping(self, series: Series, *args, **kwargs) -> Series:
         try:
-            series = super(FloatTypingLight, self).styping(series, *args, **kwargs)
+            series = FloatTypingLight(self.features).styping(series, *args, **kwargs)
         except Exception as exc:
-            self.LOOGER.debug('Error typing using Light method, executing normal typing.')
-        series = super(FloatTyping, self).styping(series, *args, **kwargs)
+            self.LOGGER.debug('Error typing using Light method, executing normal typing.')
+        series = FloatTyping(self.features).styping(series, *args, **kwargs)
         return series
     
 
@@ -558,38 +569,57 @@ class BooleanTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
-                .astype('bool')
+                .astype(pd.BooleanDtype())
         return dataframe
     
     def styping(self, series: Series, *args, **kwargs) -> Series:
-        return series.astype('bool')
+        return series.astype(pd.BooleanDtype())
     
     
-class BaseFeaturesTyping:
-    def __init__(self, features: Features):
+class BaseMultiFeatureTyping:
+    
+    def __init__(
+        self, 
+        features: Features,
+        LOGGER: Logger=Logger(
+                name="BaseMultiFeatureTyping",
+                formatter_options=FormatterOptions(
+                    include_datetime=True,
+                    include_logger_name=True,
+                    include_level_name=True,
+                ),
+                default_start=False
+            )
+    ):
         self.features = features
-        self._feature_type_to_features = self._group_features_by_typing_method()
+        self.LOGGER = LOGGER
+        self._feature_type_to_features: Dict[FeatureType, Features] \
+            = self._group_features_by_typing_method()
     
     def _pre_validate(self, dataframe: DataFrame):
         feature_names = self.features.list_features_name()
         diff_cols = list_ops(feature_names, dataframe.columns)
         if len(diff_cols) > 0:
-            raise Exception(f"DataFrame does not hav all necessary columns. Missing: {diff_cols}")
+            raise Exception(f"DataFrame does not have all necessary columns. Missing: {diff_cols}")
         
     def _post_validate(self, dataframe: DataFrame):
         pass
         
     def _group_features_by_typing_method(self) -> Dict[FeatureType, Features]:
-        features = self.features.list_features()
+        features: List[Feature] = self.features.list_features()
         feature_type_to_features = {}
         for feature in features:
             if feature.type not in feature_type_to_features:
                 feature_type_to_features[feature.type] = Features()
-            feature_type_to_features[feature.type].add_feature(features)
+            feature_type_to_features[feature.type].add_feature(feature)
         return feature_type_to_features
+    
+    @property
+    def features_by_type(self) -> Dict[FeatureType, Features]:
+        return self._feature_type_to_features
             
     def typing(self, dataframe: DataFrame) -> DataFrame:
-        raise Exception("Must be implemented.")               
+        raise NotImplementedError
     
     def type(self, dataframe: DataFrame):
         self._pre_validate(dataframe)
@@ -598,10 +628,11 @@ class BaseFeaturesTyping:
         return response_dataframe
 
 
-class FeaturesTyping(BaseFeaturesTyping):
+class FeaturesTyping(BaseMultiFeatureTyping):
     
     def typing(self, dataframe: DataFrame) -> DataFrame:
-        for feature_type, features in self._feature_type_to_features.items():
+        
+        for feature_type, features in self.features_by_type.items():
             
             if feature_type is FeatureType.STR:
                 dataframe = StringTyping(features).type(dataframe)
@@ -636,10 +667,11 @@ class FeaturesTyping(BaseFeaturesTyping):
         return dataframe 
 
 
-class LightFeaturesTyping(BaseFeaturesTyping):
+class LightFeaturesTyping(BaseMultiFeatureTyping):
     
     def typing(self, dataframe: DataFrame) -> DataFrame:
-        for feature_type, features in self._feature_type_to_features.items():
+        
+        for feature_type, features in self.features_by_type.items():
             
             if feature_type is FeatureType.STR:
                 dataframe = StringTyping(features).type(dataframe)
@@ -674,37 +706,67 @@ class LightFeaturesTyping(BaseFeaturesTyping):
         return dataframe 
 
 
-class SmartFeaturesTyping(BaseFeaturesTyping):
+class SmartFeaturesTyping(BaseMultiFeatureTyping):
+    
+    def verbose(
+        self, 
+        feature_type: FeatureType, 
+        features: Features, 
+        done: bool=False
+    ):
+        verbose_message: str = f"Typing as {feature_type.name} the following features {features.list_features_name()}..."
+        if done:
+            verbose_message += " Done!"
+        self.LOGGER.debug(verbose_message)
     
     def typing(self, dataframe: DataFrame) -> DataFrame:
-        for feature_type, features in self._feature_type_to_features.items():
+        
+        for feature_type, features in self.features_by_type.items():
             
             if feature_type is FeatureType.STR:
+                self.verbose(feature_type, features)
                 dataframe = StringTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.INT:
+                self.verbose(feature_type, features)
                 dataframe = Int64TypingSmart(features).type(dataframe)                
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.FLOAT:
+                self.verbose(feature_type, features)
                 dataframe = FloatTypingSmart(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.DATETIME:
+                self.verbose(feature_type, features)
                 dataframe = DatetimeTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.DATETIMEUTC:
+                self.verbose(feature_type, features)
                 dataframe = DatetimeUTCTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.TIMESTAMP:
+                self.verbose(feature_type, features)
                 dataframe = DatetimeTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.JSONB:
+                self.verbose(feature_type, features)
                 dataframe = ObjectTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.OBJECT:
+                self.verbose(feature_type, features)
                 dataframe = ObjectTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
                 
             elif feature_type is FeatureType.BOOLEAN:
+                self.verbose(feature_type, features)
                 dataframe = BooleanTyping(features).type(dataframe)
+                self.verbose(feature_type, features, done=True)
             
             else:
                 raise Exception(f"Feature Type {feature_type} not supported.")

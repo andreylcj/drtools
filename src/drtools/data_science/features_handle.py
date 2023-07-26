@@ -223,7 +223,9 @@ class Feature:
 
 
 class Features:
-    def __init__(self, features: List[Feature]=[]) -> None:
+    def __init__(self, features: List[Feature]=None) -> None:
+        if features is None:
+            features = []
         self.features = features
         
     def list_features_name(self) -> List[str]:

@@ -5,7 +5,7 @@ of system.
 """
 
 import os
-from typing import List
+from typing import List, Optional
 from drtools.utils import (
     get_os_name,
     join_path
@@ -85,10 +85,10 @@ def move_file(
 
 def get_files_path(
     parent_path: str, 
-    content_arr: List[str]=[],
-    ignore_files: List[str]=[],
-    ignore_folders: List[str]=[],
-    ignore_if_contain_some_of_the_words: List[str]=[]
+    content_arr: Optional[List[str]]=None,
+    ignore_files: Optional[List[str]]=None,
+    ignore_folders: Optional[List[str]]=None,
+    ignore_if_contain_some_of_the_words: Optional[List[str]]=None,
 ) -> List:
     """Return array containing all abs path of files inside directory.
 
@@ -111,6 +111,19 @@ def get_files_path(
     List
         List of files path inside parent path directory.
     """
+    
+    if content_arr is None:
+        content_arr = []
+
+    if ignore_files is None:
+        ignore_files = []
+
+    if ignore_folders is None:
+        ignore_folders = []
+
+    if ignore_if_contain_some_of_the_words is None:
+        ignore_if_contain_some_of_the_words = []    
+    
     files_path_arr = []
     ignore_cuz_content_name_have_some_of_the_words = False
     for content_name in content_arr:
@@ -149,9 +162,9 @@ def get_files_path(
 
 def list_path_of_all_files_inside_directory(
     root_directory_path: str,
-    ignore_files: List[str]=[],
-    ignore_folders: List[str]=[],
-    ignore_if_contain_some_of_the_words: List[str]=[]
+    ignore_files: Optional[List[str]]=None,
+    ignore_folders: Optional[List[str]]=None,
+    ignore_if_contain_some_of_the_words: Optional[List[str]]=None,
 ) -> List:
     """Return array containing all abs path inside some directory.
 
@@ -172,6 +185,16 @@ def list_path_of_all_files_inside_directory(
     List
         List of files path inside parent path directory.
     """
+    if ignore_files is None:
+        ignore_files = []
+        
+    if ignore_folders is None:
+        ignore_folders = []
+        
+    if ignore_if_contain_some_of_the_words is None:
+        ignore_if_contain_some_of_the_words = []
+        
+    
     try:
       dataDirectoryContent = os.listdir(root_directory_path)
     except:

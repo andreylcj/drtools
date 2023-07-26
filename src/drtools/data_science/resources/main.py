@@ -181,8 +181,8 @@ def typeraze(
     dataframe: DataFrame,
     features: List[SimpleFeature],
     dtypes: List[str]=None,
-    ignore_dtypes: List[str]=[],
-    custom_treatment: List[TypeColumm]=[],
+    ignore_dtypes: List[str]=None,
+    custom_treatment: List[TypeColumm]=None,
     utc: Union[bool, None]=None,
     to_numeric: bool=False,
     LOGGER: Logger=None,
@@ -225,6 +225,12 @@ def typeraze(
     Exception
         When some error occurs when typing some column.
     """
+    if ignore_dtypes is None:
+        ignore_dtypes = []
+
+    if custom_treatment is None:
+        custom_treatment = []
+
         
     df = dataframe.copy()
 
@@ -771,7 +777,7 @@ class Model:
         self,
         dataframe: DataFrame,
         filter_only: List[str]=None,
-        ignore_features: List[str]=[],
+        ignore_features: List[str]=None,
         ignore_categorical: bool=False,
         ignore_numerical: bool=False,
         custom: List[Feature]=None,
@@ -815,6 +821,8 @@ class Model:
         Exception
             If "description" fielf of Feature is invalid.
         """
+        if ignore_features is None:
+            ignore_features = []
         
         df = dataframe.copy()
         
@@ -966,7 +974,7 @@ class Model:
         dataframe: DataFrame,
         as_model_input: bool=False,
         type_only: List[str]=None,
-        ignore_features: List[str]=[],
+        ignore_features: List[str]=None,
         custom: List[Feature]=None,
         **kwargs
     ) -> DataFrame:
@@ -999,6 +1007,9 @@ class Model:
         DataFrame
             The typed DataFrame.
         """
+        if ignore_features is None:
+            ignore_features = []
+        
         all_features_name = self.cols_correct_order()
         
         input_features_name = self.input_features_name()
@@ -1151,7 +1162,7 @@ class Database(ABC):
         self,
         dataframe: DataFrame,
         dtypes: List[str]=None,
-        ignore_dtypes: List[str]=[],
+        ignore_dtypes: List[str]=None,
         verbosity: bool=False,
         **kwargs
     ) -> DataFrame:
@@ -1181,6 +1192,8 @@ class Database(ABC):
         Exception
             When some error occurs when typing some column.
         """
+        if ignore_dtypes is None:
+            ignore_dtypes = []
             
         df = dataframe.copy()
         useful_cols = list_ops(

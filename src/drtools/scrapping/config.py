@@ -24,7 +24,7 @@ def chrome_start(
     chrome_type: Union[
         GOOGLE, CHROMIUM, BRAVE, MSEDGE
     ]=GOOGLE,
-    chrome_options_arguments: List[str]=[],
+    chrome_options_arguments: List[str]=None,
     warning_logs: bool=True,
     load_images: bool=False,
     load_js: bool=True
@@ -69,6 +69,8 @@ def chrome_start(
     WebDriver
         Selenium WebDriver
     """
+    if chrome_options_arguments is None:
+        chrome_options_arguments = []
     
     # Only display possible problems
     if warning_logs:

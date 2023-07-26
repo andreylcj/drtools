@@ -109,9 +109,9 @@ def time_series_data_generator(
     id_col: str,
     target_col: str,
     series_size: int,
-    ignore_cols: List[str]=[],
-    data_leak_cols: List[str]=[],
-    immutable_cols: List[str]=[],
+    ignore_cols: List[str]=None,
+    data_leak_cols: List[str]=None,
+    immutable_cols: List[str]=None,
     light: bool=False,
     dtype: bool=True,
     chunksize: int=1,
@@ -164,6 +164,15 @@ def time_series_data_generator(
     DataFrame
         The DataFrame after transform the data into Time Series.
     """
+    if ignore_cols is None:
+        ignore_cols = []
+        
+    if data_leak_cols is None:
+        data_leak_cols = []
+        
+    if immutable_cols is None:
+        immutable_cols = []
+        
     
     LOGGER.debug(f'Preprocess data...')
     
@@ -393,7 +402,7 @@ def time_series_data_split(
     dataframe: DataFrame,
     time_col: str,
     target_col: str,
-    sizes: List[float]=[0.5, 0.2, 0.3],
+    sizes: List[float]=None,
     light: bool=False,
     drop_time_col: bool=False,
 ) -> List[DataFrame]:
@@ -424,6 +433,8 @@ def time_series_data_split(
     List[DataFrame]
         List of X and y dataframes.
     """
+    if sizes is None:
+        sizes = [0.5, 0.2, 0.3]
     
     if light:
         df = dataframe

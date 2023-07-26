@@ -363,8 +363,8 @@ def typeraze(
     dataframe: DataFrame,
     features: List, # List[FeatureJSON]
     dtypes: List[str]=None,
-    ignore_dtypes: List[str]=[],
-    custom_treatment: List[TypeColumm]=[],
+    ignore_dtypes: List[str]=None,
+    custom_treatment: List[TypeColumm]=None,
     utc: Union[bool, None]=None,
     to_numeric: bool=False,
     LOGGER: Logger=None,
@@ -407,6 +407,12 @@ def typeraze(
     Exception
         When some error occurs when typing some column.
     """
+    if ignore_dtypes is None:
+        ignore_dtypes = []
+        
+    if custom_treatment is None:
+        custom_treatment = []
+        
         
     df = dataframe.copy()
 
