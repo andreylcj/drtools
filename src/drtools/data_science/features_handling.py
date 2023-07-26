@@ -302,7 +302,7 @@ class BaseFeatureConstructor:
             else:
                 self.LOGGER.debug(f'Constructing {features_name} from {must_have_features_name}... Done!')        
     
-    def _pre_validate(self, dataframe: DataFrame, *args, **kwargs):
+    def _pre_validate(self, dataframe: DataFrame, **kwargs):
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
@@ -317,7 +317,7 @@ class BaseFeatureConstructor:
             
         self.verbose(True)
             
-    def _post_validate(self, response_dataframe: DataFrame, received_dataframe: DataFrame, *args, **kwargs):
+    def _post_validate(self, response_dataframe: DataFrame, received_dataframe: DataFrame, **kwargs):
         receveid_shape = received_dataframe.shape
         features_name = self._get_features_name()
         missing_cols = list_ops(features_name, response_dataframe.columns)
@@ -333,7 +333,7 @@ class BaseFeatureConstructor:
             
         self.verbose(False)
     
-    def _spre_validate(self, dataframe: DataFrame, *args, **kwargs):
+    def _spre_validate(self, dataframe: DataFrame, **kwargs):
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
@@ -348,37 +348,58 @@ class BaseFeatureConstructor:
             
         self.verbose(True)
         
-    def _spost_validate(self, response_series: Series, received_dataframe: DataFrame, *args, **kwargs):
+    def _spost_validate(
+        self, 
+        response_series: Series, 
+        received_dataframe: DataFrame, 
+        **kwargs
+    ):
         self.verbose(False)
     
-    def construct(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def construct(
+        self, 
+        dataframe: DataFrame, 
+        LOGGER: Logger=None,
+        **kwargs
+    ) -> DataFrame:
+        
+        if LOGGER is not None:
+            self.LOGGER = LOGGER
         
         if self.pre_validate:
-            self._pre_validate(dataframe, *args, **kwargs)
+            self._pre_validate(dataframe, **kwargs)
             
-        response_dataframe = self.constructor(dataframe, *args, **kwargs)
+        response_dataframe = self.constructor(dataframe, **kwargs)
         
         if self.post_validate:
-            self._post_validate(response_dataframe, dataframe, *args, **kwargs)
+            self._post_validate(response_dataframe, dataframe, **kwargs)
             
         return response_dataframe
     
-    def sconstruct(self, dataframe: DataFrame, *args, **kwargs) -> Series:
+    def sconstruct(
+        self, 
+        dataframe: DataFrame, 
+        LOGGER: Logger=None,
+        **kwargs
+    ) -> Series:
+        
+        if LOGGER is not None:
+            self.LOGGER = LOGGER
                 
         if self.spre_validate:
-            self._spre_validate(dataframe, *args, **kwargs)
+            self._spre_validate(dataframe, **kwargs)
             
-        responses_series = self.sconstructor(dataframe, *args, **kwargs)
+        responses_series = self.sconstructor(dataframe, **kwargs)
         
         if self.spost_validate:
-            self._spost_validate(responses_series, dataframe, *args, **kwargs)
+            self._spost_validate(responses_series, dataframe, **kwargs)
             
         return responses_series
     
-    def constructor(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def constructor(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         raise Exception("Must be implemented.")
     
-    def sconstructor(self, dataframe: DataFrame, *args, **kwargs) -> Series:
+    def sconstructor(self, dataframe: DataFrame, **kwargs) -> Series:
         raise Exception("Must be implemented.")
 
 
@@ -407,28 +428,38 @@ class BaseFeatureTyping(BaseFeatureConstructor):
             LOGGER=LOGGER
         )
     
-    def constructor(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
-        return self.typing(dataframe, *args, **kwargs)
+    def constructor(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        return self.typing(dataframe, **kwargs)
     
-    def sconstructor(self, dataframe: DataFrame, *args, **kwargs) -> Series:
+    def sconstructor(self, dataframe: DataFrame, **kwargs) -> Series:
         series = dataframe[self._get_features_name()[0]]
-        return self.styping(series, *args, **kwargs)
+        return self.styping(series, **kwargs)
     
-    def type(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
-        return self.construct(dataframe, *args, **kwargs)
+    def type(
+        self, 
+        dataframe: DataFrame, 
+        LOGGER: Logger=None,
+        **kwargs
+    ) -> DataFrame:
+        return self.construct(dataframe, LOGGER=LOGGER, **kwargs)
     
-    def stype(self, dataframe: DataFrame, *args, **kwargs) -> Series:
-        return self.sconstruct(dataframe, *args, **kwargs)
+    def stype(
+        self, 
+        dataframe: DataFrame, 
+        LOGGER: Logger=None,
+        **kwargs
+    ) -> Series:
+        return self.sconstruct(dataframe, LOGGER=LOGGER, **kwargs)
     
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         raise Exception("Must be implemented.")
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         raise Exception("Must be implemented.")
 
 
 class StringTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         blank: bool = kwargs.pop("blank", True)
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
@@ -440,7 +471,7 @@ class StringTyping(BaseFeatureTyping):
                     .astype(pd.StringDtype())
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         blank: bool = kwargs.pop("blank", True)
         series_response: Series = series.astype(pd.StringDtype())
         if not blank:
@@ -451,128 +482,128 @@ class StringTyping(BaseFeatureTyping):
     
     
 class DatetimeUTCTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .apply(pd.to_datetime, errors='coerce', utc=True)
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return pd.to_datetime(series, errors='coerce', utc=True)
     
     
 class DatetimeTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .apply(pd.to_datetime, errors='coerce')
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return pd.to_datetime(series, errors='coerce')
     
     
 class Int64TypingLight(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .astype(pd.Int64Dtype())
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return series.astype(pd.Int64Dtype())
 
 
 class Int64Typing(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .apply(pd.to_numeric, errors='coerce') \
                 .astype(pd.Int64Dtype())
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return pd.to_numeric(series, errors='coerce').astype(pd.Int64Dtype())
     
 
 class Int64TypingSmart(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         try:
-            dataframe = Int64TypingLight(self.features).typing(dataframe, *args, **kwargs)
+            dataframe = Int64TypingLight(self.features).typing(dataframe, **kwargs)
         except Exception as exc:
             self.LOGGER.debug('Error typing using Light method, executing normal typing.')
-        dataframe = Int64Typing(self.features).typing(dataframe, *args, **kwargs)
+        dataframe = Int64Typing(self.features).typing(dataframe, **kwargs)
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         try:
-            series = Int64TypingLight(self.features).styping(series, *args, **kwargs)
+            series = Int64TypingLight(self.features).styping(series, **kwargs)
         except Exception as exc:
             self.LOGGER.debug('Error typing using Light method, executing normal typing.')
-        series = Int64Typing(self.features).styping(series, *args, **kwargs)
+        series = Int64Typing(self.features).styping(series, **kwargs)
         return series    
 
 
 class FloatTypingLight(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .astype('float')
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return series.astype('float')
 
 
 class FloatTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .apply(pd.to_numeric, errors='coerce') \
                 .astype('float')
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return pd.to_numeric(series, errors='coerce').astype('float')
     
 
 class FloatTypingSmart(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         try:
-            dataframe = FloatTypingLight(self.features).typing(dataframe, *args, **kwargs)
+            dataframe = FloatTypingLight(self.features).typing(dataframe, **kwargs)
         except Exception as exc:
             self.LOGGER.debug('Error typing using Light method, executing normal typing.')
-        dataframe = FloatTyping(self.features).typing(dataframe, *args, **kwargs)
+        dataframe = FloatTyping(self.features).typing(dataframe, **kwargs)
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         try:
-            series = FloatTypingLight(self.features).styping(series, *args, **kwargs)
+            series = FloatTypingLight(self.features).styping(series, **kwargs)
         except Exception as exc:
             self.LOGGER.debug('Error typing using Light method, executing normal typing.')
-        series = FloatTyping(self.features).styping(series, *args, **kwargs)
+        series = FloatTyping(self.features).styping(series, **kwargs)
         return series
     
 
 class ObjectTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .astype(object)
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return series.astype(object)
     
 
 class BooleanTyping(BaseFeatureTyping):
-    def typing(self, dataframe: DataFrame, *args, **kwargs) -> DataFrame:
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe[self._get_features_name()] \
                 .astype(pd.BooleanDtype())
         return dataframe
     
-    def styping(self, series: Series, *args, **kwargs) -> Series:
+    def styping(self, series: Series, **kwargs) -> Series:
         return series.astype(pd.BooleanDtype())
     
     
