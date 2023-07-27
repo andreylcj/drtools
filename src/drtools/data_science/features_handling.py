@@ -439,7 +439,7 @@ class BaseFeatureTyping(BaseFeatureConstructor):
         return self.typing(dataframe, **kwargs)
     
     def sconstructor(self, dataframe: DataFrame, **kwargs) -> Series:
-        series = dataframe[self._get_features_name()[0]]
+        series = dataframe.loc[:, self._get_features_name()[0]]
         return self.styping(series, **kwargs)
     
     def type(
@@ -468,12 +468,12 @@ class BaseFeatureTyping(BaseFeatureConstructor):
 class StringTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         blank: bool = kwargs.pop("blank", True)
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .astype(pd.StringDtype())
         if not blank:
-            dataframe[self._get_features_name()] \
-                = dataframe[self._get_features_name()] \
+            dataframe.loc[:, self._get_features_name()] \
+                = dataframe.loc[:, self._get_features_name()] \
                     .replace({"": None}) \
                     .astype(pd.StringDtype())
         return dataframe
@@ -490,8 +490,8 @@ class StringTyping(BaseFeatureTyping):
     
 class DatetimeUTCTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .apply(pd.to_datetime, errors='coerce', utc=True)
         return dataframe
     
@@ -501,8 +501,8 @@ class DatetimeUTCTyping(BaseFeatureTyping):
     
 class DatetimeTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .apply(pd.to_datetime, errors='coerce')
         return dataframe
     
@@ -512,8 +512,8 @@ class DatetimeTyping(BaseFeatureTyping):
     
 class Int64TypingLight(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .astype(pd.Int64Dtype())
         return dataframe
     
@@ -523,8 +523,8 @@ class Int64TypingLight(BaseFeatureTyping):
 
 class Int64Typing(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .apply(pd.to_numeric, errors='coerce') \
                 .astype(pd.Int64Dtype())
         return dataframe
@@ -553,8 +553,8 @@ class Int64TypingSmart(BaseFeatureTyping):
 
 class FloatTypingLight(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .astype('float')
         return dataframe
     
@@ -564,8 +564,8 @@ class FloatTypingLight(BaseFeatureTyping):
 
 class FloatTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .apply(pd.to_numeric, errors='coerce') \
                 .astype('float')
         return dataframe
@@ -594,8 +594,8 @@ class FloatTypingSmart(BaseFeatureTyping):
 
 class ObjectTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .astype(object)
         return dataframe
     
@@ -605,8 +605,8 @@ class ObjectTyping(BaseFeatureTyping):
 
 class BooleanTyping(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        dataframe[self._get_features_name()] \
-            = dataframe[self._get_features_name()] \
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
                 .astype(pd.BooleanDtype())
         return dataframe
     
