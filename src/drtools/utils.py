@@ -1300,8 +1300,12 @@ def split_into_chunks(
     chunks_list = []
     batch_size: int = len(input_list) // chunksize
 
-    for i in range(0, len(input_list), batch_size):
-        chunk = input_list[i:i + batch_size]
-        chunks_list.append(chunk)
+    if batch_size > 0:
+        for i in range(0, len(input_list), batch_size):
+            chunk = input_list[i:i + batch_size]
+            chunks_list.append(chunk)
+    
+    else:
+        chunks_list = [input_list]
 
     return chunks_list
