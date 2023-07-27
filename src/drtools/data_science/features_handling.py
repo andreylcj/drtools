@@ -8,7 +8,7 @@ other stuff related to features from Machine Learn Model.
 from drtools.utils import list_ops
 from pandas import DataFrame, Series
 import pandas as pd
-from typing import List, Union, Dict, TypedDict, Any, Callable, Optional
+from typing import List, Union, Dict, TypedDict, Any, Callable, Optional, Tuple
 from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
 # from drtools.data_science.model_handling import Model
@@ -27,7 +27,7 @@ class EncondeOptions(TypedDict):
 def one_hot_encoding(
     dataframe: DataFrame,
     column: str,
-    encode_values: List[EncodeValue],
+    encode_values: List[Union[str, int]],
     prefix: str=None,
     prefix_sep: str="_",
     drop_self_col: bool=True,
@@ -318,12 +318,19 @@ class BaseFeatureConstructor:
         self.verbose(True)
             
     def _post_validate(self, response_dataframe: DataFrame, received_dataframe: DataFrame, **kwargs):
-        receveid_shape = received_dataframe.shape
-        features_name = self._get_features_name()
-        missing_cols = list_ops(features_name, response_dataframe.columns)
+        receveid_shape: Tuple[int, int] = received_dataframe.shape
+        features_name: List[str] = self._get_features_name()
+        missing_cols: List[str] = list_ops(features_name, response_dataframe.columns)
+        not_expected_cols: List[str] = list_ops(
+            response_dataframe.columns, 
+            list_ops(received_dataframe.columns, features_name, ops='union')
+        )
         
         if len(missing_cols) > 0:
             raise DataFrameMissingColumns(missing_cols)
+        
+        if len(not_expected_cols) > 0:
+            raise Exception(f"Not expected cols: {not_expected_cols}")
         
         if receveid_shape[0] != response_dataframe.shape[0]:
             raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
