@@ -1280,11 +1280,28 @@ def get_dict_val(
 
 
 def split_list(
-    arr: List, 
+    input_list: List, 
     batch_size: int
 ) -> List[List]:
     sub_lists = [
-        arr[i: i+batch_size] 
-        for i in range(0,len(arr),batch_size)
+        input_list[i: i+batch_size] 
+        for i in range(0, len(input_list), batch_size)
     ]
     return sub_lists
+
+
+def split_into_chunks(
+    input_list: List, 
+    chunksize: int=1
+):
+    if not input_list or chunksize == 0:
+        raise ValueError("List cannot be empty and group lenght must be greater than zero.")
+
+    chunks_list = []
+    batch_size: int = len(input_list) // chunksize
+
+    for i in range(0, len(input_list), batch_size):
+        chunk = input_list[i:i + batch_size]
+        chunks_list.append(chunk)
+
+    return chunks_list
