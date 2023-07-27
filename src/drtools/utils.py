@@ -1277,3 +1277,14 @@ def get_dict_val(
         if idx < len(keys_depth) - 1:
             curr_data = deepcopy(d)
     return d
+
+
+def split_list(
+    arr: List, 
+    batch_size: int
+) -> List[List]:
+    sub_lists = [
+        arr[i: i+batch_size] 
+        for i in range(0,len(arr),batch_size)
+    ]
+    return sub_lists
