@@ -531,6 +531,18 @@ class Int64Typing(BaseFeatureTyping):
     
     def styping(self, series: Series, **kwargs) -> Series:
         return pd.to_numeric(series, errors='coerce').astype(pd.Int64Dtype())
+
+
+class Int8Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.Int8Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.Int8Dtype())
     
 
 class Int64TypingSmart(BaseFeatureTyping):
