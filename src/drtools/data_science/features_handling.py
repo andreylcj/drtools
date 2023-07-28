@@ -521,6 +521,42 @@ class Int64TypingLight(BaseFeatureTyping):
         return series.astype(pd.Int64Dtype())
 
 
+class Int8Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.Int8Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.Int8Dtype())
+
+
+class Int16Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.Int16Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.Int16Dtype())
+
+
+class Int32Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.Int32Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.Int32Dtype())
+
+
 class Int64Typing(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe.loc[:, self._get_features_name()] \
@@ -533,16 +569,52 @@ class Int64Typing(BaseFeatureTyping):
         return pd.to_numeric(series, errors='coerce').astype(pd.Int64Dtype())
 
 
-class Int8Typing(BaseFeatureTyping):
+class UInt8Typing(BaseFeatureTyping):
     def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe.loc[:, self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
                 .apply(pd.to_numeric, errors='coerce') \
-                .astype(pd.Int8Dtype())
+                .astype(pd.UInt8Dtype())
         return dataframe
     
     def styping(self, series: Series, **kwargs) -> Series:
-        return pd.to_numeric(series, errors='coerce').astype(pd.Int8Dtype())
+        return pd.to_numeric(series, errors='coerce').astype(pd.UInt8Dtype())
+
+
+class UInt16Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.UInt16Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.UInt16Dtype())
+
+
+class UInt32Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.UInt32Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.UInt32Dtype())
+
+
+class UInt64Typing(BaseFeatureTyping):
+    def typing(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        dataframe.loc[:, self._get_features_name()] \
+            = dataframe.loc[:, self._get_features_name()] \
+                .apply(pd.to_numeric, errors='coerce') \
+                .astype(pd.UInt64Dtype())
+        return dataframe
+    
+    def styping(self, series: Series, **kwargs) -> Series:
+        return pd.to_numeric(series, errors='coerce').astype(pd.UInt64Dtype())
     
 
 class Int64TypingSmart(BaseFeatureTyping):
