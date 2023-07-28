@@ -1294,7 +1294,8 @@ def split_into_chunks(
     input_list: List, 
     chunksize: int=1
 ):
-    if not input_list or chunksize == 0:
+    if len(input_list) == 0 \
+    or chunksize == 0:
         raise ValueError("List cannot be empty and group lenght must be greater than zero.")
 
     chunks_list = []
