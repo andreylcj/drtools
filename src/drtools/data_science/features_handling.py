@@ -230,6 +230,8 @@ class BaseFeatureConstructor:
         must_have_features: Union[Features, Feature]=Features(),
         verbosity: bool=True,
         name: str=None,
+        type_features: bool=False,
+        type_must_have_features: bool=False,
         pre_validate: bool=True,
         post_validate: bool=True,
         spre_validate: bool=True,
@@ -251,6 +253,8 @@ class BaseFeatureConstructor:
         self.must_have_features = must_have_features
         self.verbosity = verbosity
         self.name = name
+        self.type_features = type_features
+        self.type_must_have_features = type_must_have_features
         self.pre_validate = pre_validate
         self.post_validate = post_validate
         self.spre_validate = spre_validate
@@ -311,7 +315,11 @@ class BaseFeatureConstructor:
             else:
                 self.LOGGER.debug(f'Constructing {features_name} from {must_have_features_name}... Done!')        
     
-    def _pre_validate(self, dataframe: DataFrame, **kwargs):
+    def _pre_validate(
+        self, 
+        dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
@@ -321,12 +329,16 @@ class BaseFeatureConstructor:
         if len(missing_cols) > 0:
             raise DataFrameMissingColumns(missing_cols)
         
-        # if self.type_must_have_features:
-        #     dataframe = typeraze(dataframe, self.must_have_features.info, LOGGER=self.LOGGER)
-            
         self.verbose(True)
+        
+        return dataframe
             
-    def _post_validate(self, response_dataframe: DataFrame, received_dataframe: DataFrame, **kwargs):
+    def _post_validate(
+        self, 
+        response_dataframe: DataFrame, 
+        received_dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
         receveid_shape: Tuple[int, int] = received_dataframe.shape
         features_name: List[str] = self._get_features_name()
         missing_cols: List[str] = list_ops(features_name, response_dataframe.columns)
@@ -344,12 +356,15 @@ class BaseFeatureConstructor:
         if receveid_shape[0] != response_dataframe.shape[0]:
             raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
         
-        # if self.type_features:
-        #     response_dataframe = typeraze(response_dataframe, self.features.info, LOGGER=self.LOGGER)
-            
         self.verbose(False)
+        
+        return response_dataframe
     
-    def _spre_validate(self, dataframe: DataFrame, **kwargs):
+    def _spre_validate(
+        self, 
+        dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
         must_have_features_name = self._get_must_have_features_name()
         missing_cols = list_ops(must_have_features_name, dataframe.columns)
         
@@ -359,18 +374,18 @@ class BaseFeatureConstructor:
         if len(missing_cols) > 0:
             raise DataFrameMissingColumns(missing_cols)
         
-        # if self.type_must_have_features:
-        #     dataframe = typeraze(dataframe, self.must_have_features.info, LOGGER=self.LOGGER)
-            
         self.verbose(True)
+        
+        return dataframe
         
     def _spost_validate(
         self, 
         response_series: Series, 
         received_dataframe: DataFrame, 
         **kwargs
-    ):
+    ) -> Series:
         self.verbose(False)
+        return response_series
     
     def construct(
         self, 
@@ -383,12 +398,12 @@ class BaseFeatureConstructor:
             self.set_logger(LOGGER)
         
         if self.pre_validate:
-            self._pre_validate(dataframe, **kwargs)
+            dataframe = self._pre_validate(dataframe, **kwargs)
             
         response_dataframe = self.constructor(dataframe, **kwargs)
         
         if self.post_validate:
-            self._post_validate(response_dataframe, dataframe, **kwargs)
+            response_dataframe = self._post_validate(response_dataframe, dataframe, **kwargs)
             
         return response_dataframe
     
@@ -403,12 +418,12 @@ class BaseFeatureConstructor:
             self.set_logger(LOGGER)
                 
         if self.spre_validate:
-            self._spre_validate(dataframe, **kwargs)
+            dataframe = self._spre_validate(dataframe, **kwargs)
             
         responses_series = self.sconstructor(dataframe, **kwargs)
         
         if self.spost_validate:
-            self._spost_validate(responses_series, dataframe, **kwargs)
+            responses_series = self._spost_validate(responses_series, dataframe, **kwargs)
             
         return responses_series
     
@@ -1187,6 +1202,88 @@ class SmartFeaturesTyper(FeaturesTyper):
                 raise Exception(f"Feature Type {feature_type} not supported.")
             
         return dataframe
+
+
+class BaseTyperFeatureConstructor(BaseFeatureConstructor):
+    
+    def _pre_validate(
+        self, 
+        dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
+        dataframe = super(BaseTyperFeatureConstructor, self)._pre_validate(
+            dataframe=dataframe,
+            **kwargs
+        )
+        
+        if self.type_must_have_features:
+            dataframe = FeaturesTyper( 
+                self.must_have_features, 
+                LOGGER=self.LOGGER
+            ).type(
+                dataframe=dataframe,
+                **kwargs
+            )
+        
+        return dataframe
+            
+    def _post_validate(
+        self, 
+        response_dataframe: DataFrame, 
+        received_dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
+        dataframe = super(BaseTyperFeatureConstructor, self)._post_validate(
+            response_dataframe=response_dataframe,
+            received_dataframe=received_dataframe,
+            **kwargs
+        )
+        
+        if self.type_features:
+            dataframe = FeaturesTyper( 
+                self.features, 
+                LOGGER=self.LOGGER
+            ).type(
+                dataframe=response_dataframe,
+                **kwargs
+            )
+        
+        return dataframe
+    
+    def _spre_validate(
+        self, 
+        dataframe: DataFrame, 
+        **kwargs
+    ) -> DataFrame:
+        dataframe = super(BaseTyperFeatureConstructor, self)._spre_validate(
+            dataframe=dataframe,
+            **kwargs
+        )
+        
+        if self.type_must_have_features:
+            dataframe = FeaturesTyper( 
+                self.must_have_features, 
+                LOGGER=self.LOGGER
+            ).type(
+                dataframe=dataframe,
+                **kwargs
+            )
+        
+        return dataframe
+        
+    def _spost_validate(
+        self, 
+        response_series: Series, 
+        received_dataframe: DataFrame, 
+        **kwargs
+    ) -> Series:
+        response_series = super(BaseTyperFeatureConstructor, self)._spost_validate(
+            response_series=response_series,
+            received_dataframe=received_dataframe,
+            **kwargs
+        )
+        
+        return response_series
 
 
 class BaseTransformer:
