@@ -531,13 +531,16 @@ def add_previous_values_by_group(
     start_range: int = 1 if not window_absolute_value else window_size
 
     for idx, group_col_chunk in enumerate(group_col_chunks):
-        curr_idx = idx + 1
-        started_at = datetime.now()
+        curr_idx: int = idx + 1
+        started_at: datetime = datetime.now()
 
         LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Computing chunk...')
 
-        work_df = df[df[group_column].isin(group_col_chunk)].copy()
-        df = df[~df[group_column].isin(group_col_chunk)]
+        work_df: DataFrame = df[df[group_column].isin(group_col_chunk)].copy()
+        df: DataFrame = df[~df[group_column].isin(group_col_chunk)]
+        
+        LOGGER.debug(f'Chunk Shape: ({work_df.shape[0]:,}/{work_df.shape[1]:,})')
+        LOGGER.debug(f'Remaining Data Shape: ({df.shape[0]:,}/{df.shape[1]:,})')
 
         new_column_names: List[str] = []
         new_columns: List[Series] = []
@@ -563,9 +566,10 @@ def add_previous_values_by_group(
                 axis=0,
                 ignore_index=True
             )
+            
+        LOGGER.debug(f'Final Data Shape: ({final_df.shape[0]:,}/{final_df.shape[1]:,})')
 
-        duration = (datetime.now() - started_at).total_seconds()
-        duration = round(duration, 2)
+        duration: float = round((datetime.now() - started_at).total_seconds(), 2)
         LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Chunk computation ends in {duration}s.')
 
     del df
