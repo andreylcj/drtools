@@ -509,7 +509,7 @@ def add_previous_values_by_group(
         ),
         default_start=False
     )
-  ):
+):
     if light:
       df: DataFrame = dataframe
     else:
@@ -531,41 +531,42 @@ def add_previous_values_by_group(
     start_range: int = 1 if not window_absolute_value else window_size
 
     for idx, group_col_chunk in enumerate(group_col_chunks):
-      curr_idx = idx + 1
-      started_at = datetime.now()
+        curr_idx = idx + 1
+        started_at = datetime.now()
 
-      LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Computing chunk...')
+        LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Computing chunk...')
 
-      work_df = df[df[group_column].isin(group_col_chunk)]
+        work_df = df[df[group_column].isin(group_col_chunk)].copy()
+        df = df[~df[group_column].isin(group_col_chunk)]
 
-      new_column_names: List[str] = []
-      new_columns: List[Series] = []
+        new_column_names: List[str] = []
+        new_columns: List[Series] = []
 
-      for i in range(start_range, window_size + 1):
-        for col in columns:
-          col_name: str = f"{col}_n-{i}"
-          new_column_names.append(col_name)
-          new_columns.append(work_df.groupby(group_column)[col].shift(i))
+        for i in range(start_range, window_size + 1):
+            for col in columns:
+                col_name: str = f"{col}_n-{i}"
+                new_column_names.append(col_name)
+                new_columns.append(work_df.groupby(group_column)[col].shift(i))
 
-      new_df: DataFrame = pd.concat(new_columns, axis=1)
-      new_df.columns: List[str] = new_column_names
-      work_df: DataFrame = pd.concat([work_df, new_df], axis=1)
+        new_df: DataFrame = pd.concat(new_columns, axis=1)
+        new_df.columns: List[str] = new_column_names
+        work_df: DataFrame = pd.concat([work_df, new_df], axis=1)
 
-      if final_df is None:
-        final_df: DataFrame = work_df.copy()
-      
-      else:
-        final_df: DataFrame = pd.concat([
-              final_df,
-              work_df
-          ],
-          axis=0,
-          ignore_index=True
-        )
+        if final_df is None:
+            final_df: DataFrame = work_df.copy()
+        
+        else:
+            final_df: DataFrame = pd.concat([
+                    final_df,
+                    work_df
+                ],
+                axis=0,
+                ignore_index=True
+            )
 
-      duration = (datetime.now() - started_at).total_seconds()
-      duration = round(duration, 2)
-      LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Chunk computation ends in {duration}s.')
+        duration = (datetime.now() - started_at).total_seconds()
+        duration = round(duration, 2)
+        LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Chunk computation ends in {duration}s.')
 
     del df
 

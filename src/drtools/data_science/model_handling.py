@@ -13,7 +13,7 @@ from drtools.logging import Logger, FormatterOptions
 from drtools.utils import (
     list_ops
 )
-from drtools.data_science.features_handling import (
+from drtools.data_science.features_handle import (
     Categorical, Features, Feature, FeatureType
 )
 from enum import Enum
