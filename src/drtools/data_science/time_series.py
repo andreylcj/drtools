@@ -539,8 +539,8 @@ def add_previous_values_by_group(
         work_df: DataFrame = df[df[group_column].isin(group_col_chunk)].copy()
         df: DataFrame = df[~df[group_column].isin(group_col_chunk)]
         
-        LOGGER.debug(f'Chunk Shape: ({work_df.shape[0]:,}/{work_df.shape[1]:,})')
-        LOGGER.debug(f'Remaining Data Shape: ({df.shape[0]:,}/{df.shape[1]:,})')
+        LOGGER.debug(f'Chunk Shape: ({work_df.shape[0]:,}, {work_df.shape[1]:,})')
+        LOGGER.debug(f'Remaining Data Shape: ({df.shape[0]:,}, {df.shape[1]:,})')
 
         new_column_names: List[str] = []
         new_columns: List[Series] = []
@@ -567,7 +567,7 @@ def add_previous_values_by_group(
                 ignore_index=True
             )
             
-        LOGGER.debug(f'Final Data Shape: ({final_df.shape[0]:,}/{final_df.shape[1]:,})')
+        LOGGER.debug(f'Final Data Shape: ({final_df.shape[0]:,}, {final_df.shape[1]:,})')
 
         duration: float = round((datetime.now() - started_at).total_seconds(), 2)
         LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Chunk computation ends in {duration}s.')
