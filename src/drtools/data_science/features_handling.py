@@ -705,7 +705,7 @@ class StringTyper(BaseFeatureTyper):
             = dataframe.loc[:, self._get_features_name()] \
                 .astype(FeatureType.STR.type)
         
-        features: List[StringFeature] = self.features.list_features()[0]
+        features: List[StringFeature] = self.features.list_features()
         blank_features: Features = Features([
             feature
             for feature in features
