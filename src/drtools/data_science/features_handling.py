@@ -164,20 +164,9 @@ class FeatureType(Enum):
         return obj
 
 
-# Input = 'input'
-# Output = 'output'
-# VarChar = 'varchar'
-# Str = 'str'
-# Int = 'int'
-# Float = 'float'
-# Datetime = 'datetime'
-# TimeStamp = 'timestamp'
-# Categorical = 'categorical'
-# Numerical = 'numerical'
-
-
 class Feature:
-    def __init__(self, 
+    def __init__(
+        self, 
         name: str, 
         type: FeatureType=None,
         **kwargs,
@@ -194,6 +183,147 @@ class Feature:
             'name': self.name,
             'type': self.type.value if self.type is not None else None
         }
+
+
+class StringFeature(Feature):
+    def __init__(
+        self, 
+        name: str,
+        blank: bool=True,
+    ) -> None:
+        super(StringFeature, self).__init__(
+            name=name,
+            type=FeatureType.STR,
+            blank=blank
+        )
+        
+        
+class Int8Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Int8Feature, self).__init__(
+            name=name, 
+            type=FeatureType.INT8
+        )
+
+
+class Int16Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Int16Feature, self).__init__(
+            name=name, 
+            type=FeatureType.INT16
+        )
+
+
+class Int32Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Int32Feature, self).__init__(
+            name=name, 
+            type=FeatureType.INT32
+        )
+
+
+class Int64Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Int64Feature, self).__init__(
+            name=name, 
+            type=FeatureType.INT64
+        )
+
+
+class UInt8Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(UInt8Feature, self).__init__(
+            name=name, 
+            type=FeatureType.UINT8
+        )
+
+
+class UInt16Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(UInt16Feature, self).__init__(
+            name=name, 
+            type=FeatureType.UINT16
+        )
+
+
+class UInt32Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(UInt32Feature, self).__init__(
+            name=name, 
+            type=FeatureType.UINT32
+        )
+
+
+class UInt64Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(UInt64Feature, self).__init__(
+            name=name, 
+            type=FeatureType.UINT64
+        )
+
+
+class Float32Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Float32Feature, self).__init__(
+            name=name, 
+            type=FeatureType.FLOAT32
+        )
+
+
+class Float64Feature(Feature):
+    def __init__(self, name: str) -> None:
+        super(Float64Feature, self).__init__(
+            name=name, 
+            type=FeatureType.FLOAT64
+        )
+
+
+class DATETIMEFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(DATETIMEFeature, self).__init__(
+            name=name, 
+            type=FeatureType.DATETIME
+        )
+
+
+class DatetimeUtcFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(DatetimeUtcFeature, self).__init__(
+            name=name, 
+            type=FeatureType.DATETIMEUTC
+        )
+
+
+class TimestampFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(TimestampFeature, self).__init__(
+            name=name, 
+            type=FeatureType.TIMESTAMP
+        )
+
+
+class JsonbFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(JsonbFeature, self).__init__(
+            name=name, 
+            type=FeatureType.JSONB
+        )
+
+
+class ObjectFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(ObjectFeature, self).__init__(
+            name=name, 
+            type=FeatureType.OBJECT
+        )
+
+
+class BooleanFeature(Feature):
+    def __init__(self, name: str) -> None:
+        super(BooleanFeature, self).__init__(
+            name=name, 
+            type=FeatureType.BOOLEAN
+        )
 
 
 class Features:
@@ -494,22 +624,30 @@ class BaseFeatureTyper(BaseFeatureConstructor):
 #################################
 class StringTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        blank: bool = kwargs.pop("blank", True)
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
                 .astype(FeatureType.STR.type)
-        if not blank:
-            dataframe[self._get_features_name()] \
-                = dataframe.loc[:, self._get_features_name()] \
+        
+        features: List[StringFeature] = self.features.list_features()[0]
+        blank_features: Features = Features([
+            feature
+            for feature in features
+            if not feature.blank
+        ])
+        
+        if len(blank_features.list_features()) > 0:
+            dataframe[blank_features.list_features_name()  ] \
+                = dataframe.loc[:, blank_features.list_features_name()  ] \
                     .replace({"": None}) \
                     .astype(FeatureType.STR.type)
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        blank: bool = kwargs.pop("blank", True)
         series_response: Series = series.astype(FeatureType.STR.type)
+        feature: StringFeature = self.features.list_features()[0]
+        blank: bool = feature.blank
         if not blank:
-            series_response = series_response.astype(FeatureType.STR.type) \
+            series_response = series_response \
                 .replace({"": None}) \
                 .astype(FeatureType.STR.type)
         return series_response
