@@ -185,139 +185,221 @@ class StringFeature(Feature):
         self, 
         name: str,
         blank: bool=True,
+        **kwargs
     ) -> None:
         super(StringFeature, self).__init__(
             name=name,
             type=FeatureType.STR,
-            blank=blank
+            blank=blank,
+            **kwargs
         )
         
         
 class Int8Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Int8Feature, self).__init__(
             name=name, 
-            type=FeatureType.INT8
+            type=FeatureType.INT8,
+            **kwargs
         )
 
 
 class Int16Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Int16Feature, self).__init__(
             name=name, 
-            type=FeatureType.INT16
+            type=FeatureType.INT16,
+            **kwargs
         )
 
 
 class Int32Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Int32Feature, self).__init__(
             name=name, 
-            type=FeatureType.INT32
+            type=FeatureType.INT32,
+            **kwargs
         )
 
 
 class Int64Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Int64Feature, self).__init__(
             name=name, 
-            type=FeatureType.INT64
+            type=FeatureType.INT64,
+            **kwargs
         )
 
 
 class UInt8Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(UInt8Feature, self).__init__(
             name=name, 
-            type=FeatureType.UINT8
+            type=FeatureType.UINT8,
+            **kwargs
         )
 
 
 class UInt16Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(UInt16Feature, self).__init__(
             name=name, 
-            type=FeatureType.UINT16
+            type=FeatureType.UINT16,
+            **kwargs
         )
 
 
 class UInt32Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(UInt32Feature, self).__init__(
             name=name, 
-            type=FeatureType.UINT32
+            type=FeatureType.UINT32,
+            **kwargs
         )
 
 
 class UInt64Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(UInt64Feature, self).__init__(
             name=name, 
-            type=FeatureType.UINT64
+            type=FeatureType.UINT64,
+            **kwargs
         )
 
 
 class Float32Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Float32Feature, self).__init__(
             name=name, 
-            type=FeatureType.FLOAT32
+            type=FeatureType.FLOAT32,
+            **kwargs
         )
 
 
 class Float64Feature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(Float64Feature, self).__init__(
             name=name, 
-            type=FeatureType.FLOAT64
+            type=FeatureType.FLOAT64,
+            **kwargs
         )
 
 
 class DatetimeFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(DatetimeFeature, self).__init__(
             name=name, 
-            type=FeatureType.DATETIME
+            type=FeatureType.DATETIME,
+            **kwargs
         )
 
 
 class DatetimeUtcFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(DatetimeUtcFeature, self).__init__(
             name=name, 
-            type=FeatureType.DATETIMEUTC
+            type=FeatureType.DATETIMEUTC,
+            **kwargs
         )
 
 
 class TimestampFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(TimestampFeature, self).__init__(
             name=name, 
-            type=FeatureType.TIMESTAMP
+            type=FeatureType.TIMESTAMP,
+            **kwargs
         )
 
 
 class JsonbFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(JsonbFeature, self).__init__(
             name=name, 
-            type=FeatureType.JSONB
+            type=FeatureType.JSONB,
+            **kwargs
         )
 
 
 class ObjectFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(ObjectFeature, self).__init__(
             name=name, 
-            type=FeatureType.OBJECT
+            type=FeatureType.OBJECT,
+            **kwargs
         )
 
 
 class BooleanFeature(Feature):
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self, 
+        name: str,
+        **kwargs
+    ) -> None:
         super(BooleanFeature, self).__init__(
             name=name, 
-            type=FeatureType.BOOLEAN
+            type=FeatureType.BOOLEAN,
+            **kwargs
         )
 
 
