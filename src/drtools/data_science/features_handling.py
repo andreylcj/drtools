@@ -5,14 +5,11 @@ other stuff related to features from Machine Learn Model.
 """
 
 
-from drtools.utils import list_ops
 from pandas import DataFrame, Series
 import pandas as pd
 from typing import List, Union, Dict, TypedDict, Any, Callable, Optional, Tuple
 from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
-# from drtools.data_science.model_handling import Model
-from drtools.data_science.general import typeraze
 from enum import Enum
 from copy import deepcopy
 
@@ -113,7 +110,6 @@ class DataFrameDiffLength(Exception):
 
 class FeatureType(Enum):
     STR = "str", "String", pd.StringDtype()
-    # INT = "int", "Integer", 
     
     INT8 = "int8", "Integer 8 bits", pd.Int8Dtype()
     INT16 = "int16", "Integer 16 bits", pd.Int16Dtype()
@@ -125,10 +121,9 @@ class FeatureType(Enum):
     UINT32 = "uint32", "Integer 32 bits", pd.UInt32Dtype()
     UINT64 = "uint64", "Integer 64 bits", pd.UInt64Dtype()
     
-    FLOAT16 = "float16", "Float 16 bits", 'float16', 'float16'
+    # FLOAT16 = "float16", "Float 16 bits", 'float16', 'float16'
     FLOAT32 = "float32", "Float 32 bits" 'float32', pd.Float32Dtype()
     FLOAT64 = "float64", "Float 64 bits", 'float64', pd.Float64Dtype()
-    # FLOAT128 = "float128", "Float 128 bits", 'float128', 'float128'
     
     DATETIME = "datetime64[ns]", "Datetime", None
     DATETIMEUTC = "datetime64[ns, UTC]", "Datetime UTC", None
@@ -278,9 +273,9 @@ class Float64Feature(Feature):
         )
 
 
-class DATETIMEFeature(Feature):
+class DatetimeFeature(Feature):
     def __init__(self, name: str) -> None:
-        super(DATETIMEFeature, self).__init__(
+        super(DatetimeFeature, self).__init__(
             name=name, 
             type=FeatureType.DATETIME
         )
@@ -836,14 +831,6 @@ class SmartIntTyper(SmartNumberTyper):
 #################################
 # Float Typer
 #################################
-class Float16Typer(NumberTyper):
-    def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Float16Typer, self).typer(dataframe, FeatureType.FLOAT16.type, **kwargs)
-    
-    def styper(self, series: Series, **kwargs) -> Series:
-        return super(Float16Typer, self).styper(series, FeatureType.FLOAT16.type, **kwargs)
-
-
 class Float32Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         return super(Float32Typer, self).typer(dataframe, FeatureType.FLOAT32.type, **kwargs)
@@ -858,14 +845,6 @@ class Float64Typer(NumberTyper):
     
     def styper(self, series: Series, **kwargs) -> Series:
         return super(Float64Typer, self).styper(series, FeatureType.FLOAT64.type, **kwargs)
-
-
-# class Float128Typer(NumberTyper):
-#     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-#         return super(Float128Typer, self).typer(dataframe, FeatureType.FLOAT128.type)
-    
-#     def styper(self, series: Series, **kwargs) -> Series:
-#         return super(Float128Typer, self).styper(series, FeatureType.FLOAT128.type)
     
 
 class SmartFloatTyper(SmartNumberTyper):
@@ -874,10 +853,7 @@ class SmartFloatTyper(SmartNumberTyper):
         max_val = abs(series.max())
         col_smart_type = None
         
-        if max_val <= 65504:
-            col_smart_type = FeatureType.FLOAT16.type
-            
-        elif max_val <= 3.4028235e+38:
+        if max_val <= 3.4028235e+38:
             col_smart_type = FeatureType.FLOAT32.type
             
         else: # 1.7976931348623157e+308
@@ -1161,16 +1137,7 @@ class FeaturesTyper(BaseMultiFeatureTyper):
                     **kwargs
                 )
             
-            # Float
-            elif feature_type is FeatureType.FLOAT16:
-                dataframe = self.verbose_typer(
-                    dataframe=dataframe,
-                    features=features,
-                    typer=Float16Typer,
-                    feature_type=feature_type,
-                    **kwargs
-                )
-                
+            # Float                
             elif feature_type is FeatureType.FLOAT32:
                 dataframe = self.verbose_typer(
                     dataframe=dataframe,
