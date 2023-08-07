@@ -7,18 +7,11 @@ other stuff related to features from Machine Learn Model.
 
 from pandas import DataFrame, Series
 import pandas as pd
-from typing import List, Union, Dict, TypedDict, Any, Callable, Optional, Tuple
+from typing import List, Union, Dict, Any, Callable, Optional, Tuple
 from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
 from enum import Enum
 from copy import deepcopy
-
-
-ColumnName = str
-EncodeValue = List[Union[str, int]]
-class EncondeOptions(TypedDict):
-    EncodeValues: List[EncodeValue]
-    DropRedundantColVal: str
 
 
 def one_hot_encoding(
