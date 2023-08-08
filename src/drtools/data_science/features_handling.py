@@ -7,7 +7,15 @@ other stuff related to features from Machine Learn Model.
 
 from pandas import DataFrame, Series
 import pandas as pd
-from typing import List, Union, Dict, Any, Callable, Optional, Tuple
+from typing import (
+    List,
+    Union,
+    Dict,
+    TypedDict,
+    Callable,
+    Optional,
+    Tuple,
+)
 from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
 from enum import Enum
@@ -499,7 +507,7 @@ class BaseFeatureConstructor:
         spost_validate: bool=True,
         constructor: Callable=None,
         sconstructor: Callable=None,
-        model=None, # drtools.data_science.model_handling.Model
+        # model=None, # drtools.data_science.model_handling.Model
         LOGGER: Logger=Logger(
             name="BaseFeatureConstructor",
             formatter_options=FormatterOptions(
@@ -527,7 +535,7 @@ class BaseFeatureConstructor:
         if sconstructor is not None:
             self.sconstructor = sconstructor
             
-        self.model = model
+        # self.model = model
         self.LOGGER = LOGGER
         self._startup()
     
@@ -549,11 +557,11 @@ class BaseFeatureConstructor:
         elif isinstance(self.must_have_features, Features):
             self._original_must_have_features_is_Feature = False
     
-    def set_model(
-        self, 
-        model # drtools.data_science.model_handling.Model
-    ) -> None:
-        self.model = model
+    # def set_model(
+    #     self, 
+    #     model # drtools.data_science.model_handling.Model
+    # ) -> None:
+    #     self.model = model
         
     def set_logger(self, LOGGER: Logger) -> None:
         self.LOGGER = LOGGER
@@ -1527,23 +1535,23 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
         return response_series
 
 
-class BaseTransformer:
-    def __init__(
-        self,
-        model, # drtools.data_science.model_handling.Model
-        LOGGER: Logger=Logger(
-            name="Transformer",
-            formatter_options=FormatterOptions(
-                include_datetime=True,
-                include_logger_name=True,
-                include_level_name=True,
-                include_exec_time=False,
-            ),
-            default_start=False
-        )
-    ) -> None:
-        self.model = model
-        self.LOGGER = LOGGER
+# class BaseTransformer:
+#     def __init__(
+#         self,
+#         model, # drtools.data_science.model_handling.Model
+#         LOGGER: Logger=Logger(
+#             name="Transformer",
+#             formatter_options=FormatterOptions(
+#                 include_datetime=True,
+#                 include_logger_name=True,
+#                 include_level_name=True,
+#                 include_exec_time=False,
+#             ),
+#             default_start=False
+#         )
+#     ) -> None:
+#         self.model = model
+#         self.LOGGER = LOGGER
     
-    def apply(self, *args, **kwargs) -> Any:
-        pass
+#     def apply(self, *args, **kwargs) -> Any:
+#         pass
