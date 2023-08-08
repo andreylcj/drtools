@@ -242,7 +242,7 @@ class BaseModel:
     
     def __init__(
         self,
-        model_definition: ModelDefitinion,
+        model_definition: ModelDefinition,
   		LOGGER: Logger=Logger(
             name="BaseModel",
             formatter_options=FormatterOptions(
