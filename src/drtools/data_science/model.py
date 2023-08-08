@@ -114,7 +114,7 @@ class TrainingInformation:
         }
     
 
-class ModelDefitinion:
+class ModelDefinition:
     def __init__(
         self,
         algorithm: AlgorithmType,
