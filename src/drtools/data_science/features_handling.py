@@ -170,29 +170,28 @@ class DataFrameDiffLength(Exception):
         
 
 class FeatureType(Enum):
-    STR = "string", "String", pd.StringDtype()
+    STR = "string", "String", pd.StringDtype(), "O"
     
-    INT8 = "int8", "Integer 8 bits", pd.Int8Dtype()
-    INT16 = "int16", "Integer 16 bits", pd.Int16Dtype()
-    INT32 = "int32", "Integer 32 bits", pd.Int32Dtype()
-    INT64 = "int64", "Integer 64 bits", pd.Int64Dtype()
+    INT8 = "int8", "Integer 8 bits", pd.Int8Dtype(), "int8"
+    INT16 = "int16", "Integer 16 bits", pd.Int16Dtype(), "int16"
+    INT32 = "int32", "Integer 32 bits", pd.Int32Dtype(), "int32"
+    INT64 = "int64", "Integer 64 bits", pd.Int64Dtype(), "int64"
     
-    UINT8 = "uint8", "Integer 8 bits", pd.UInt8Dtype()
-    UINT16 = "uint16", "Integer 16 bits", pd.UInt16Dtype()
-    UINT32 = "uint32", "Integer 32 bits", pd.UInt32Dtype()
-    UINT64 = "uint64", "Integer 64 bits", pd.UInt64Dtype()
+    UINT8 = "uint8", "Integer 8 bits", pd.UInt8Dtype(), "uint8"
+    UINT16 = "uint16", "Integer 16 bits", pd.UInt16Dtype(), "uint16"
+    UINT32 = "uint32", "Integer 32 bits", pd.UInt32Dtype(), "uint32"
+    UINT64 = "uint64", "Integer 64 bits", pd.UInt64Dtype(), "uint64"
     
-    # FLOAT16 = "float16", "Float 16 bits", 'float16', 'float16'
-    FLOAT32 = "float32", "Float 32 bits" 'float32', pd.Float32Dtype()
-    FLOAT64 = "float64", "Float 64 bits", 'float64', pd.Float64Dtype()
+    FLOAT32 = "float32", "Float 32 bits", pd.Float32Dtype(), "float32"
+    FLOAT64 = "float64", "Float 64 bits", pd.Float64Dtype(), "float64"
     
-    DATETIME = "datetime64[ns]", "Datetime", None
-    DATETIMEUTC = "datetime64[ns, UTC]", "Datetime UTC", None
-    TIMESTAMP = "timestamp", "Timestamp", None
+    DATETIME = "datetime64[ns]", "Datetime", None, None
+    DATETIMEUTC = "datetime64[ns, UTC]", "Datetime UTC", None, None
+    TIMESTAMP = "timestamp", "Timestamp", None, None
     
-    JSONB = "JSONB", "JSONB", object
-    OBJECT = "object", "Object", object
-    BOOLEAN = "boolean", "Boolean", pd.BooleanDtype()
+    JSONB = "JSONB", "JSONB", object, "O"
+    OBJECT = "object", "Object", object, "O"
+    BOOLEAN = "boolean", "Boolean", pd.BooleanDtype(), "O"
     
     @property
     def code(self) -> str:
@@ -202,9 +201,8 @@ class FeatureType(Enum):
     def pname(self) -> str:
         return self.value[1]
     
-    @property
-    def type(self):
-        return self.value[2]
+    def type(self, numpy: bool=False):
+        return self.value[3] if numpy else self.value[2]
     
     @classmethod
     def smart_instantiation(cls, value):
@@ -507,7 +505,6 @@ class BaseFeatureConstructor:
         spost_validate: bool=True,
         constructor: Callable=None,
         sconstructor: Callable=None,
-        # model=None, # drtools.data_science.model_handling.Model
         LOGGER: Logger=Logger(
             name="BaseFeatureConstructor",
             formatter_options=FormatterOptions(
@@ -535,7 +532,6 @@ class BaseFeatureConstructor:
         if sconstructor is not None:
             self.sconstructor = sconstructor
             
-        # self.model = model
         self.LOGGER = LOGGER
         self._startup()
     
@@ -556,12 +552,6 @@ class BaseFeatureConstructor:
             
         elif isinstance(self.must_have_features, Features):
             self._original_must_have_features_is_Feature = False
-    
-    # def set_model(
-    #     self, 
-    #     model # drtools.data_science.model_handling.Model
-    # ) -> None:
-    #     self.model = model
         
     def set_logger(self, LOGGER: Logger) -> None:
         self.LOGGER = LOGGER
@@ -710,6 +700,7 @@ class BaseFeatureTyper(BaseFeatureConstructor):
         features: Union[Features, Feature],
         verbosity: bool=False,
         name: str=None,
+        numpy: bool=False,
         LOGGER: Logger=Logger(
             name="BaseFeatureTyper",
             formatter_options=FormatterOptions(
@@ -727,6 +718,7 @@ class BaseFeatureTyper(BaseFeatureConstructor):
             name=name,
             LOGGER=LOGGER
         )
+        self.numpy = numpy
     
     def constructor(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         return self.typer(dataframe, **kwargs)
@@ -765,7 +757,7 @@ class StringTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
-                .astype(FeatureType.STR.type)
+                .astype(FeatureType.STR.type(self.numpy))
         
         features: List[StringFeature] = self.features.list_features()
         blank_features: Features = Features([
@@ -778,17 +770,17 @@ class StringTyper(BaseFeatureTyper):
             dataframe[blank_features.list_features_name()  ] \
                 = dataframe.loc[:, blank_features.list_features_name()  ] \
                     .replace({"": None}) \
-                    .astype(FeatureType.STR.type)
+                    .astype(FeatureType.STR.type(self.numpy))
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        series_response: Series = series.astype(FeatureType.STR.type)
+        series_response: Series = series.astype(FeatureType.STR.type(self.numpy))
         feature: StringFeature = self.features.list_features()[0]
         blank: bool = feature.blank
         if not blank:
             series_response = series_response \
                 .replace({"": None}) \
-                .astype(FeatureType.STR.type)
+                .astype(FeatureType.STR.type(self.numpy))
         return series_response
     
 
@@ -873,66 +865,66 @@ class SmartNumberTyper(BaseFeatureTyper):
 #################################
 class Int8Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Int8Typer, self).typer(dataframe, FeatureType.INT8.type, **kwargs)
+        return super(Int8Typer, self).typer(dataframe, FeatureType.INT8.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Int8Typer, self).styper(series, FeatureType.INT8.type, **kwargs)
+        return super(Int8Typer, self).styper(series, FeatureType.INT8.type(self.numpy), **kwargs)
 
 
 class Int16Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Int16Typer, self).typer(dataframe, FeatureType.INT16.type, **kwargs)
+        return super(Int16Typer, self).typer(dataframe, FeatureType.INT16.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Int16Typer, self).styper(series, FeatureType.INT16.type, **kwargs)
+        return super(Int16Typer, self).styper(series, FeatureType.INT16.type(self.numpy), **kwargs)
 
 
 class Int32Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Int32Typer, self).typer(dataframe, FeatureType.INT32.type, **kwargs)
+        return super(Int32Typer, self).typer(dataframe, FeatureType.INT32.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Int32Typer, self).styper(series, FeatureType.INT32.type, **kwargs)
+        return super(Int32Typer, self).styper(series, FeatureType.INT32.type(self.numpy), **kwargs)
 
 
 class Int64Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Int64Typer, self).typer(dataframe, FeatureType.INT64.type, **kwargs)
+        return super(Int64Typer, self).typer(dataframe, FeatureType.INT64.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Int64Typer, self).styper(series, FeatureType.INT64.type, **kwargs)
+        return super(Int64Typer, self).styper(series, FeatureType.INT64.type(self.numpy), **kwargs)
 
 
 class UInt8Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(UInt8Typer, self).typer(dataframe, FeatureType.UINT8.type, **kwargs)
+        return super(UInt8Typer, self).typer(dataframe, FeatureType.UINT8.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(UInt8Typer, self).styper(series, FeatureType.UINT8.type, **kwargs)
+        return super(UInt8Typer, self).styper(series, FeatureType.UINT8.type(self.numpy), **kwargs)
 
 
 class UInt16Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(UInt16Typer, self).typer(dataframe, FeatureType.UINT16.type, **kwargs)
+        return super(UInt16Typer, self).typer(dataframe, FeatureType.UINT16.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(UInt16Typer, self).styper(series, FeatureType.UINT16.type, **kwargs)
+        return super(UInt16Typer, self).styper(series, FeatureType.UINT16.type(self.numpy), **kwargs)
 
 
 class UInt32Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(UInt32Typer, self).typer(dataframe, FeatureType.UINT32.type, **kwargs)
+        return super(UInt32Typer, self).typer(dataframe, FeatureType.UINT32.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(UInt32Typer, self).styper(series, FeatureType.UINT32.type, **kwargs)
+        return super(UInt32Typer, self).styper(series, FeatureType.UINT32.type(self.numpy), **kwargs)
 
 
 class UInt64Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(UInt64Typer, self).typer(dataframe, FeatureType.UINT64.type, **kwargs)
+        return super(UInt64Typer, self).typer(dataframe, FeatureType.UINT64.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(UInt64Typer, self).styper(series, FeatureType.UINT64.type, **kwargs)
+        return super(UInt64Typer, self).styper(series, FeatureType.UINT64.type(self.numpy), **kwargs)
     
 
 class SmartIntTyper(SmartNumberTyper):
@@ -977,18 +969,18 @@ class SmartIntTyper(SmartNumberTyper):
 #################################
 class Float32Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Float32Typer, self).typer(dataframe, FeatureType.FLOAT32.type, **kwargs)
+        return super(Float32Typer, self).typer(dataframe, FeatureType.FLOAT32.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Float32Typer, self).styper(series, FeatureType.FLOAT32.type, **kwargs)
+        return super(Float32Typer, self).styper(series, FeatureType.FLOAT32.type(self.numpy), **kwargs)
 
 
 class Float64Typer(NumberTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
-        return super(Float64Typer, self).typer(dataframe, FeatureType.FLOAT64.type, **kwargs)
+        return super(Float64Typer, self).typer(dataframe, FeatureType.FLOAT64.type(self.numpy), **kwargs)
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return super(Float64Typer, self).styper(series, FeatureType.FLOAT64.type, **kwargs)
+        return super(Float64Typer, self).styper(series, FeatureType.FLOAT64.type(self.numpy), **kwargs)
     
 
 class SmartFloatTyper(SmartNumberTyper):
@@ -1013,11 +1005,11 @@ class ObjectTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
-                .astype(object)
+                .astype(FeatureType.OBJECT.type)
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return series.astype(object)
+        return series.astype(FeatureType.OBJECT.type)
     
 
 #################################
@@ -1027,11 +1019,11 @@ class BooleanTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
-                .astype(pd.BooleanDtype())
+                .astype(FeatureType.BOOLEAN.type)
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return series.astype(pd.BooleanDtype())    
+        return series.astype(FeatureType.BOOLEAN.type)
     
     
 class BaseMultiFeatureTyper:
@@ -1533,25 +1525,3 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
         )
         
         return response_series
-
-
-# class BaseTransformer:
-#     def __init__(
-#         self,
-#         model, # drtools.data_science.model_handling.Model
-#         LOGGER: Logger=Logger(
-#             name="Transformer",
-#             formatter_options=FormatterOptions(
-#                 include_datetime=True,
-#                 include_logger_name=True,
-#                 include_level_name=True,
-#                 include_exec_time=False,
-#             ),
-#             default_start=False
-#         )
-#     ) -> None:
-#         self.model = model
-#         self.LOGGER = LOGGER
-    
-#     def apply(self, *args, **kwargs) -> Any:
-#         pass
