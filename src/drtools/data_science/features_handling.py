@@ -79,6 +79,66 @@ def one_hot_encoding(
     return df
 
 
+class OneHotEncoder:
+    def __init__(
+        self, 
+        column: str, 
+        encode_values: List[Union[str, int]], 
+        prefix: str=None, 
+        prefix_sep: str="_",
+        drop_self_col: bool=True, 
+        drop_redundant_col_val: str=None
+    ):
+        self.column = column
+        self.encode_values = encode_values
+        self.prefix = prefix
+        self.prefix_sep = prefix_sep
+        self.drop_self_col = drop_self_col
+        self.drop_redundant_col_val = drop_redundant_col_val
+
+    def encode(self, dataframe: DataFrame) -> DataFrame:
+        """One hot encode one column, drop original column after 
+        generate encoded and drop dummy cols that is not desired on 
+        final data.
+        
+        Parameters
+        ----------
+        dataframe : DataFrame
+            DataFrame containing data to encode.
+            
+        Returns
+        -------
+        DataFrame
+            The DataFrame containing encoded columns.
+        """
+        if self.prefix is None:
+            self.prefix = self.column    
+        final_ohe_cols = [
+            f'{self.prefix}{self.prefix_sep}{x}' 
+            for x in self.encode_values
+        ]
+        df = dataframe.copy()
+        dummies = pd.get_dummies(
+            df[self.column], 
+            prefix=self.prefix, 
+            prefix_sep=self.prefix_sep
+        )
+        drop_cols = list_ops(dummies.columns, final_ohe_cols)
+        df = pd.concat([df, dummies], axis=1)
+        if self.drop_self_col:
+            drop_cols.append(self.column)
+        df = df.drop(drop_cols, axis=1)
+        # insert feature that not has on received dataframe
+        for col in final_ohe_cols:
+            if col not in df.columns:
+                df[col] = 0
+        if self.drop_redundant_col_val is not None:
+            drop_encoded_col_name = f'{self.prefix}{self.prefix_sep}{self.drop_redundant_col_val}'
+            if drop_encoded_col_name in df.columns:
+                df = df.drop(drop_encoded_col_name, axis=1)
+        return df
+
+
 class DataFrameMissingColumns(Exception):
     def __init__(
         self, 
