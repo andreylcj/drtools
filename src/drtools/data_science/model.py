@@ -23,15 +23,37 @@ class MetricType(Enum):
     @property
     def code(self):
         return self.value[0]
+    
+    @property
+    def pname(self) -> str:
+        return self.value[1]
 
 
 class AlgorithmType(Enum):
-    LIGHTGBM = "LightGBM",
-    NN = "Neural Network",
+    LIGHTGBM = "lightgbm", "Light GBM",
+    NN = "neuralnetwork", "Neural Network",
     
     @property
-    def pname(self):
+    def code(self) -> str:
         return self.value[0]
+    
+    @property
+    def pname(self) -> str:
+        return self.value[1]
+    
+    @classmethod
+    def smart_instantiation(cls, value):
+        upper_str_val = str(value).upper()
+        obj = getattr(cls, upper_str_val, None)
+        if obj is None:
+            for algorithm_type in cls:
+                if algorithm_type.code.upper() == upper_str_val:
+                    obj = algorithm_type
+                    break
+                    
+        if obj is None:
+            raise Exception(f"No correspondence was found for value: {value}")
+        return obj
 
 
 class DatasetInfo:
@@ -179,7 +201,7 @@ class ModelDefinition:
     @property
     def info(self) -> Dict:
         return {
-            'algorithm': self.algorithm.pname,
+            'algorithm': self.algorithm.code,
             'name': self.name,
             'version': self.version,
             'algorithm_infrastructure': self.algorithm_infrastructure,
@@ -260,8 +282,8 @@ class BaseModel:
     def model_name(self) -> str:
         return self.model_definition.name
     
-    @start_end_log('load_model')
-    def load_model(
+    @start_end_log('load')
+    def load(
         self,
         model_file_path: str,
         *args,
@@ -292,8 +314,8 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('save_model')
-    def save_model(
+    @start_end_log('save')
+    def save(
         self,
         model: Any,
         path: str,
@@ -375,14 +397,14 @@ class LightGbmModel(BaseModel):
     
     ALGORITHM: AlgorithmType = AlgorithmType.LIGHTGBM
     
-    def load_model(self, model_file_path: str, *args, **kwargs) -> Any:
+    def load(self, model_file_path: str, *args, **kwargs) -> Any:
         self.LOGGER.debug(f'Loading model {self.model_name}...')  
         import lightgbm as lgb
         model = lgb.Booster(model_file=model_file_path, *args, **kwargs)
         self.LOGGER.debug(f'Loading model {self.model_name}... Done!')  
         return model
     
-    def save_model(self, model: Any, path: str, *args, **kwargs) -> None:
+    def save(self, model: Any, path: str, *args, **kwargs) -> None:
         self.LOGGER.debug(f'Saving model {self.model_name}...')
         create_directories_of_path(path)
         model.save_model(filename=path, *args, **kwargs)

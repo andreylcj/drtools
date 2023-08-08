@@ -199,7 +199,7 @@ class FeatureType(Enum):
         return self.value[0]
     
     @property
-    def name(self) -> str:
+    def pname(self) -> str:
         return self.value[1]
     
     @property
