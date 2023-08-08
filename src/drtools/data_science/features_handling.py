@@ -162,7 +162,7 @@ class DataFrameDiffLength(Exception):
         
 
 class FeatureType(Enum):
-    STR = "str", "String", pd.StringDtype()
+    STR = "string", "String", pd.StringDtype()
     
     INT8 = "int8", "Integer 8 bits", pd.Int8Dtype()
     INT16 = "int16", "Integer 16 bits", pd.Int16Dtype()
@@ -184,7 +184,7 @@ class FeatureType(Enum):
     
     JSONB = "JSONB", "JSONB", object
     OBJECT = "object", "Object", object
-    BOOLEAN = "bool", "Boolean", pd.BooleanDtype()
+    BOOLEAN = "boolean", "Boolean", pd.BooleanDtype()
     
     @property
     def code(self) -> str:
@@ -207,6 +207,7 @@ class FeatureType(Enum):
                 if feature_type.code.upper() == upper_str_val:
                     obj = feature_type
                     break
+                    
         if obj is None:
             raise Exception(f"No correspondence was found for value: {value}")
         return obj
@@ -229,7 +230,7 @@ class Feature:
         return {
             **self.__dict__,
             'name': self.name,
-            'type': self.type.value if self.type is not None else None
+            'type': self.type.code if self.type is not None else None
         }
 
 
