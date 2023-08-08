@@ -187,7 +187,7 @@ class ModelDefinition:
         return pretty_cols
     
     @property
-    def name(self) -> str:
+    def model_name(self) -> str:
         """Returns model name.
 
         Returns
@@ -280,7 +280,7 @@ class BaseModel:
     
     @property
     def model_name(self) -> str:
-        return self.model_definition.name
+        return self.model_definition.model_name
     
     @start_end_log('load')
     def load(
