@@ -371,7 +371,7 @@ class BaseModel:
         pass
     
     
-class LightGBMModel(BaseModel):
+class LightGbmModel(BaseModel):
     
     ALGORITHM: AlgorithmType = AlgorithmType.LIGHTGBM
     
