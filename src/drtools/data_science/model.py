@@ -276,6 +276,8 @@ class BaseModel:
         ),
     ) -> None:        
         self.model_definition = model_definition
+        for k, v in self.model_definition.__dict__.items():
+            setattr(k, v)
         self.LOGGER = LOGGER
     
     @property
