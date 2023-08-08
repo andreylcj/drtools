@@ -274,10 +274,10 @@ class BaseModel:
             ),
             default_start=False
         ),
-    ) -> None:        
+    ) -> None:
         self.model_definition = model_definition
         for k, v in self.model_definition.__dict__.items():
-            setattr(k, v)
+            setattr(self, k, v)
         self.LOGGER = LOGGER
     
     @property
