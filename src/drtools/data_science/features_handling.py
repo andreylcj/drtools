@@ -1603,13 +1603,13 @@ class BaseFeaturesValidator:
         
         if expected_df_shape[0] != received_df_shape[0] \
         or expected_df_shape[0] != merged_df_shape[0] \
-        or received_df_shape[0] != merged_df[0]:
+        or received_df_shape[0] != merged_df_shape[0]:
             self.LOGGER.error("Shape error.")
             raise Exception("Shape error.")
         
         for feature in self.features.list_features():
             
-            self.LOGGER.debug(f'Checking col {feature.name}...')
+            self.LOGGER.debug(f'Validating feature {feature.name}...')
             
             expected_series = merged_df[f'expected.{feature.name}']
             received_series = merged_df[f'received.{feature.name}']
@@ -1618,7 +1618,7 @@ class BaseFeaturesValidator:
                 self.LOGGER.error("Received data is NOT EQUALS to Expected data.")
                 raise Exception("Received data is NOT EQUALS to Expected data.")
             
-            self.LOGGER.debug(f'Checking col {feature.name}... Done!')
+            self.LOGGER.debug(f'Validating feature {feature.name}... Done!')
     
         self.LOGGER.info("Received data is EQUALS to Expected data.")
         
