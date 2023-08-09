@@ -935,28 +935,28 @@ class SmartIntTyper(SmartNumberTyper):
         col_smart_type = None
         
         if -128 <= min_val and max_val <= 127:
-            col_smart_type = FeatureType.INT8.type
+            col_smart_type = FeatureType.INT8.type(self.numpy)
             
         elif 0 <= min_val and max_val <= 255:
-            col_smart_type = FeatureType.UINT8.type
+            col_smart_type = FeatureType.UINT8.type(self.numpy)
             
         elif -32768 <= min_val and max_val <= 32767:
-            col_smart_type = FeatureType.INT16.type
+            col_smart_type = FeatureType.INT16.type(self.numpy)
             
         elif 0 <= min_val and max_val <= 65535:
-            col_smart_type = FeatureType.UINT16.type
+            col_smart_type = FeatureType.UINT16.type(self.numpy)
             
         elif -2147483648 <= min_val and max_val <= 2147483647:
-            col_smart_type = FeatureType.INT32.type
+            col_smart_type = FeatureType.INT32.type(self.numpy)
             
         elif 0 <= min_val and max_val <= 4294967295:
-            col_smart_type = FeatureType.UINT32.type
+            col_smart_type = FeatureType.UINT32.type(self.numpy)
             
         elif -9223372036854775808 <= min_val and max_val <= 9223372036854775807:
-            col_smart_type = FeatureType.INT64.type
+            col_smart_type = FeatureType.INT64.type(self.numpy)
             
         elif 0 <= min_val:
-            col_smart_type = FeatureType.UINT64.type
+            col_smart_type = FeatureType.UINT64.type(self.numpy)
             
         else:
             raise Exception(f"Unsupported column value. Min: {min_val} | Max: {max_val}")
@@ -990,10 +990,10 @@ class SmartFloatTyper(SmartNumberTyper):
         col_smart_type = None
         
         if max_val <= 3.4028235e+38:
-            col_smart_type = FeatureType.FLOAT32.type
+            col_smart_type = FeatureType.FLOAT32.type(self.numpy)
             
         else: # 1.7976931348623157e+308
-            col_smart_type = FeatureType.FLOAT64.type
+            col_smart_type = FeatureType.FLOAT64.type(self.numpy)
             
         return col_smart_type
     
@@ -1005,11 +1005,11 @@ class ObjectTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
-                .astype(FeatureType.OBJECT.type)
+                .astype(FeatureType.OBJECT.type(self.numpy))
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return series.astype(FeatureType.OBJECT.type)
+        return series.astype(FeatureType.OBJECT.type(self.numpy))
     
 
 #################################
@@ -1019,11 +1019,11 @@ class BooleanTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
-                .astype(FeatureType.BOOLEAN.type)
+                .astype(FeatureType.BOOLEAN.type(self.numpy))
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
-        return series.astype(FeatureType.BOOLEAN.type)
+        return series.astype(FeatureType.BOOLEAN.type(self.numpy))
     
     
 class BaseMultiFeatureTyper:
@@ -1091,9 +1091,9 @@ class BaseMultiFeatureTyper:
         features: List[Feature] = self.features.list_features()
         feature_type_to_features = {}
         for feature in features:
-            if feature.type not in feature_type_to_features:
-                feature_type_to_features[feature.type] = Features()
-            feature_type_to_features[feature.type].add_feature(feature)
+            if feature.type(self.numpy) not in feature_type_to_features:
+                feature_type_to_features[feature.type(self.numpy)] = Features()
+            feature_type_to_features[feature.type(self.numpy)].add_feature(feature)
         return feature_type_to_features
     
     @property
