@@ -175,9 +175,9 @@ class ModelDefinition:
         List[str]
             Model cols in correct order.
         """
-        extra_features_name = self.list_extra_features_name()
-        input_features_name = self.list_input_features_name()
-        output_features_name = self.list_output_features_name()
+        extra_features_name = self.extra_features.list_features_name()
+        input_features_name = self.input_features.list_features_name()
+        output_features_name = self.output_features.list_features_name()
         pretty_cols = list_ops(
             extra_features_name, 
             input_features_name + output_features_name
