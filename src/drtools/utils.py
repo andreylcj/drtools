@@ -6,6 +6,7 @@ in many situations.
 
 import os
 from datetime import datetime
+from dateutil import parser, tz
 import re
 import platform
 import json
@@ -1310,3 +1311,37 @@ def split_into_chunks(
         chunks_list = [input_list]
 
     return chunks_list
+
+
+def iso_parser(date_str: str) -> datetime:
+    """Iso Parser.
+    """
+    response = None
+    error = False
+    try:
+        response = datetime.fromisoformat(date_str)
+    except:
+        error = True    
+    if error:
+        error = False
+        try:
+            response = parser.isoparse(date_str)
+        except:
+            error = True            
+    if error:
+        raise Exception(f"Invalid date: {date_str}")
+    return response
+
+
+def smart_tz_handle(date_str):
+    """Parse date as string handling timezone.
+    """
+    try:
+        date = parser.parse(date_str)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=tz.tzutc())
+        # Retorna a representação em string da data com o fuso horário UTC
+        return date.strftime('%Y-%m-%dT%H:%M:%S.%f %z')
+    except Exception as e:
+        # print(f"Erro ao processar a data: {e}")
+        return None
