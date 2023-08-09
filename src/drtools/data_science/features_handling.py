@@ -20,6 +20,7 @@ from drtools.utils import list_ops
 from drtools.logging import Logger, FormatterOptions
 from enum import Enum
 from copy import deepcopy
+from datetime import timedelta
 
 
 def one_hot_encoding(
@@ -1530,11 +1531,16 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
 
 
 class BaseFeaturesValidator:
+    
+    NUMERIC_ERROR_TOLERANCE: float = 1e-3
+    DATETIME_ERROR_TOLERANCE: timedelta = timedelta(seconds=1)
+    
     def __init__(
         self,
         features: Features,
         expected: Any,
         equality: Features,
+        error_log_level: int=1, # 1 ou 2
         LOGGER: Logger=Logger(
                 name="BaseFeaturesValidator",
                 formatter_options=FormatterOptions(
@@ -1553,6 +1559,7 @@ class BaseFeaturesValidator:
             = self.equality.list_features_name() \
                 + self.features.list_features_name()
         self.expected_df = self.expected_df[self._full_features_name]
+        self.error_log_level = error_log_level
         self.LOGGER = LOGGER
         
         self.expected_df = FeaturesTyper(self.features).type(self.expected_df, LOGGER=self.LOGGER)
@@ -1611,11 +1618,60 @@ class BaseFeaturesValidator:
             
             self.LOGGER.debug(f'Validating feature {feature.name}...')
             
-            expected_series = merged_df[f'expected.{feature.name}']
-            received_series = merged_df[f'received.{feature.name}']
+            expected_feature_name: str = f'expected.{feature.name}'
+            received_feature_name: str = f'received.{feature.name}'
             
-            if not expected_series.equals(received_series):
-                self.LOGGER.error("Received data is NOT EQUALS to Expected data.")
+            # expected_series = merged_df[expected_feature_name]
+            # received_series = merged_df[received_feature_name]
+            
+            # get err data
+            error_data_cols \
+                = [f'expected.{col}' for col in self.equality.list_features_name()] \
+                + [expected_feature_name, received_feature_name]
+            error_data = merged_df[error_data_cols]
+            error_data = error_data.rename({
+                    f'expected.{equality_feature_name}': equality_feature_name
+                    for equality_feature_name in self.equality.list_features_name()
+                },
+                axis=1
+                )
+            
+            if feature.type is FeatureType.DATETIME \
+            or feature.type is FeatureType.DATETIMEUTC:
+                error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
+                error_data['tolerance'] = self.DATETIME_ERROR_TOLERANCE
+                error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
+                
+            elif feature.type is FeatureType.INT8 \
+            or feature.type is FeatureType.INT16 \
+            or feature.type is FeatureType.INT32 \
+            or feature.type is FeatureType.INT64 \
+            or feature.type is FeatureType.UINT8 \
+            or feature.type is FeatureType.UINT16 \
+            or feature.type is FeatureType.UINT32 \
+            or feature.type is FeatureType.UINT64 \
+            or feature.type is FeatureType.FLOAT32 \
+            or feature.type is FeatureType.FLOAT64:
+                error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
+                error_data['tolerance'] = self.NUMERIC_ERROR_TOLERANCE
+                error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
+                
+            else:
+                error_data['error'] = error_data[received_feature_name] != error_data[expected_feature_name]
+                error_data['tolerance'] = None
+                error_data['valid'] = error_data['error'] == False
+            
+            if (error_data['valid'] == False).sum() > 0:
+                
+                if self.error_log_level == 1:
+                    self.LOGGER.error(f'Validation Error:\n{error_data[~error_data["valid"]]}')
+                    
+                elif self.error_log_level == 2:
+                    self.LOGGER.error(f'Validation Error:\n{error_data}')
+                
+                else:
+                    raise Exception(f"Provided error_log_level is invalid: {self.error_log_level}")
+                    
                 raise Exception("Received data is NOT EQUALS to Expected data.")
             
             self.LOGGER.debug(f'Validating feature {feature.name}... Done!')
@@ -1663,4 +1719,3 @@ class DataFrameFeaturesValidator(BaseFeaturesValidator):
         received: Any
     ) -> DataFrame:
         return received
-        
