@@ -1527,3 +1527,57 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
         )
         
         return response_series
+
+
+class BaseFeaturesValidator:
+    def __init__(
+        self,
+        features: Features,
+        expected: Union[DataFrame, List[Dict]],
+    ) -> None:
+        self.features = features
+        self.expected = expected
+        self.startup()
+        
+    def startup(self):
+        raise NotImplementedError
+    
+    def validate(
+        self,
+        received: Union[DataFrame, List[Dict]],
+    ):
+        raise NotImplementedError
+
+
+class JSONFeaturesValidator(BaseFeaturesValidator):
+        
+    def startup(self):
+        expected_df = DataFrame(self.expected)
+        expected_df = FeaturesTyper(self.features).type(expected_df)
+        self.expected_df = expected_df[self.features.list_features_name()]
+    
+    def validate(
+        self,
+        received: DataFrame,
+    ):
+        received_df = DataFrame(received)
+        received_df = FeaturesTyper(self.features).type(received_df)
+        received_df = received_df[self.features.list_features_name()]
+        if not self.expected_df.equals(received_df):
+            raise Exception("Received data is not equals to Expected data.")
+
+
+class DataFrameFeaturesValidator(BaseFeaturesValidator):
+        
+    def startup(self):
+        expected_df = FeaturesTyper(self.features).type(self.expected)
+        self.expected_df = expected_df[self.features.list_features_name()]
+    
+    def validate(
+        self,
+        received: DataFrame,
+    ):
+        received_df = FeaturesTyper(self.features).type(received)
+        received_df = received_df[self.features.list_features_name()]
+        if not self.expected_df.equals(received_df):
+            raise Exception("Received data is not equals to Expected data.")
