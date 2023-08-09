@@ -1573,9 +1573,9 @@ class BaseFeaturesValidator:
             axis=1
             )
         
-        expected_df = self.expected_df.rename({
+        expected_df = expected_df.rename({
                 col: f'expected.{col}'
-                for col in self.expected_df.columns
+                for col in expected_df.columns
             },
             axis=1
             )
@@ -1600,10 +1600,8 @@ class BaseFeaturesValidator:
         received_df_shape = received_df.shape
         merged_df_shape = merged_df.shape
         
-        if expected_df_shape[0] != received_df_shape[0] \
-        or expected_df_shape[0] != merged_df_shape[0] \
-        or received_df_shape[0] != merged_df_shape[0]:
-            self.LOGGER.error("Shape error.")
+        if expected_df_shape[0] != merged_df_shape[0]:
+            self.LOGGER.error(f"Shape error. Expected: {expected_df_shape[0]:,} | Received: {received_df_shape[0]:,} | Merged: {merged_df_shape[0]:,}")
             raise Exception("Shape error.")
         
         for feature in self.features.list_features():
@@ -1662,11 +1660,9 @@ class BaseFeaturesValidator:
                 else:
                     raise Exception(f"Provided error_log_level is invalid: {self.error_log_level}")
                     
-                raise Exception("Received data is NOT EQUALS to Expected data.")
+                raise Exception("Validation Error.")
             
             self.LOGGER.debug(f'Validating feature {feature.name}... Done!')
-    
-        self.LOGGER.info("Received data is EQUALS to Expected data.")
         
     def validate(
         self,
@@ -1690,6 +1686,8 @@ class BaseFeaturesValidator:
             expected_df=expected_df,
             received_df=received_df,
         )
+    
+        self.LOGGER.info("Feature Constructor Successfully Validated!")
         
     def parse_expected_data_to_dataframe(
         self,
