@@ -1091,9 +1091,9 @@ class BaseMultiFeatureTyper:
         features: List[Feature] = self.features.list_features()
         feature_type_to_features = {}
         for feature in features:
-            if feature.type(self.numpy) not in feature_type_to_features:
-                feature_type_to_features[feature.type(self.numpy)] = Features()
-            feature_type_to_features[feature.type(self.numpy)].add_feature(feature)
+            if feature.type not in feature_type_to_features:
+                feature_type_to_features[feature.type] = Features()
+            feature_type_to_features[feature.type].add_feature(feature)
         return feature_type_to_features
     
     @property
