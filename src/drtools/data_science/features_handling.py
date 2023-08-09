@@ -788,7 +788,7 @@ class StringTyper(BaseFeatureTyper):
 #################################
 # Datetime Typer
 #################################
-class DatetimeUTCTyper(BaseFeatureTyper):
+class DatetimeUtcTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
@@ -1309,7 +1309,7 @@ class FeaturesTyper(BaseMultiFeatureTyper):
                 dataframe = self.verbose_typer(
                     dataframe=dataframe,
                     features=features,
-                    typer=DatetimeUTCTyper,
+                    typer=DatetimeUtcTyper,
                     feature_type=feature_type,
                     **kwargs
                 )
@@ -1404,7 +1404,7 @@ class SmartFeaturesTyper(FeaturesTyper):
                 dataframe = self.verbose_typer(
                     dataframe=dataframe,
                     features=features,
-                    typer=DatetimeUTCTyper,
+                    typer=DatetimeUtcTyper,
                     feature_type=feature_type
                 )
                 
@@ -1532,15 +1532,14 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
 
 class BaseFeaturesValidator:
     
-    NUMERIC_ERROR_TOLERANCE: float = 1e-3
-    DATETIME_ERROR_TOLERANCE: timedelta = timedelta(seconds=1)
-    
     def __init__(
         self,
+        constructor: BaseFeatureConstructor,
         features: Features,
-        expected: Any,
         equality: Features,
-        error_log_level: int=1, # 1 ou 2
+        error_log_level: int=1, # 1 or 2
+        numeric_error_tolerance: float=1e-3,
+        datetime_error_tolerance: timedelta=timedelta(seconds=1),
         LOGGER: Logger=Logger(
                 name="BaseFeaturesValidator",
                 formatter_options=FormatterOptions(
@@ -1551,29 +1550,22 @@ class BaseFeaturesValidator:
                 default_start=False
             )
     ) -> None:
+        self.constructor = constructor
         self.features = features
-        self.expected = expected
-        self.expected_df = self.parse_expected_data_to_dataframe(expected)
         self.equality = equality
         self._full_features_name: List[str] \
             = self.equality.list_features_name() \
                 + self.features.list_features_name()
-        self.expected_df = self.expected_df[self._full_features_name]
         self.error_log_level = error_log_level
+        self.numeric_error_tolerance = numeric_error_tolerance
+        self.datetime_error_tolerance = datetime_error_tolerance
         self.LOGGER = LOGGER
-        
-        self.expected_df = FeaturesTyper(self.features).type(self.expected_df, LOGGER=self.LOGGER)
-        self.expected_df = FeaturesTyper(self.equality).type(self.expected_df, LOGGER=self.LOGGER)
     
-    def validate(
+    def _validate(
         self,
-        received: DataFrame,
-    ):
-        received_df = self.parse_received_data_to_dataframe(received=received)
-        received_df = received_df[self._full_features_name]
-        received_df = FeaturesTyper(self.features).type(received_df, LOGGER=self.LOGGER)
-        received_df = FeaturesTyper(self.equality).type(received_df, LOGGER=self.LOGGER)
-        
+        expected_df: DataFrame,
+        received_df: DataFrame,
+    ):        
         received_df = received_df.rename({
                 col: f'received.{col}'
                 for col in received_df.columns
@@ -1621,13 +1613,11 @@ class BaseFeaturesValidator:
             expected_feature_name: str = f'expected.{feature.name}'
             received_feature_name: str = f'received.{feature.name}'
             
-            # expected_series = merged_df[expected_feature_name]
-            # received_series = merged_df[received_feature_name]
-            
             # get err data
             error_data_cols \
                 = [f'expected.{col}' for col in self.equality.list_features_name()] \
                 + [expected_feature_name, received_feature_name]
+                
             error_data = merged_df[error_data_cols]
             error_data = error_data.rename({
                     f'expected.{equality_feature_name}': equality_feature_name
@@ -1639,7 +1629,7 @@ class BaseFeaturesValidator:
             if feature.type is FeatureType.DATETIME \
             or feature.type is FeatureType.DATETIMEUTC:
                 error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
-                error_data['tolerance'] = self.DATETIME_ERROR_TOLERANCE
+                error_data['tolerance'] = self.datetime_error_tolerance
                 error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
                 
             elif feature.type is FeatureType.INT8 \
@@ -1653,7 +1643,7 @@ class BaseFeaturesValidator:
             or feature.type is FeatureType.FLOAT32 \
             or feature.type is FeatureType.FLOAT64:
                 error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
-                error_data['tolerance'] = self.NUMERIC_ERROR_TOLERANCE
+                error_data['tolerance'] = self.numeric_error_tolerance
                 error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
                 
             else:
@@ -1678,15 +1668,38 @@ class BaseFeaturesValidator:
     
         self.LOGGER.info("Received data is EQUALS to Expected data.")
         
+    def validate(
+        self,
+        payload: Any,
+        expected: Any,
+    ):
+        expected_df = self.parse_expected_data_to_dataframe(
+            expected=expected
+        )
+        
+        payload_df = self.parse_payload_data_to_dataframe(
+            payload=payload
+        )        
+        received_df = self.constructor.construct(
+            dataframe=payload_df,
+            LOGGER=self.LOGGER
+        )
+        received_df = received_df[self._full_features_name]
+        
+        self._validate(
+            expected_df=expected_df,
+            received_df=received_df,
+        )
+        
     def parse_expected_data_to_dataframe(
         self,
         expected: Any
     ) -> DataFrame:
         raise NotImplementedError
     
-    def parse_received_data_to_dataframe(
+    def parse_payload_data_to_dataframe(
         self,
-        received: Any,
+        payload: Any,
     ) -> DataFrame:
         raise NotImplementedError
 
@@ -1697,25 +1710,30 @@ class JSONFeaturesValidator(BaseFeaturesValidator):
         self,
         expected: Any
     ) -> DataFrame:
-        return DataFrame(expected)
+        expected_df = DataFrame(expected)
+        expected_df = FeaturesTyper(self.features).type(expected_df, LOGGER=self.LOGGER)
+        expected_df = FeaturesTyper(self.equality).type(expected_df, LOGGER=self.LOGGER)
+        return expected_df
     
-    def parse_received_data_to_dataframe(
+    def parse_payload_data_to_dataframe(
         self,
-        received: Any
+        payload: Any
     ) -> DataFrame:
-        return DataFrame(received)
+        return DataFrame(payload)
 
 
-class DataFrameFeaturesValidator(BaseFeaturesValidator):
+# class DataFrameFeaturesValidator(BaseFeaturesValidator):
         
-    def parse_expected_data_to_dataframe(
-        self,
-        expected: Any
-    ) -> DataFrame:
-        return expected
+#     def parse_expected_data_to_dataframe(
+#         self,
+#         expected: Any
+#     ) -> DataFrame:
+#         expected_df = FeaturesTyper(self.features).type(expected, LOGGER=self.LOGGER)
+#         expected_df = FeaturesTyper(self.equality).type(expected_df, LOGGER=self.LOGGER)
+#         return expected_df
     
-    def parse_received_data_to_dataframe(
-        self,
-        received: Any
-    ) -> DataFrame:
-        return received
+#     def parse_payload_data_to_dataframe(
+#         self,
+#         payload: Any
+#     ) -> DataFrame:
+#         return received
