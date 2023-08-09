@@ -11,7 +11,7 @@ from typing import (
     List,
     Union,
     Dict,
-    TypedDict,
+    Any,
     Callable,
     Optional,
     Tuple,
@@ -1533,10 +1533,22 @@ class BaseFeaturesValidator:
     def __init__(
         self,
         features: Features,
-        expected: Union[DataFrame, List[Dict]],
+        expected: Any,
+        equality_on: Features,
+        LOGGER: Logger=Logger(
+                name="BaseFeaturesValidator",
+                formatter_options=FormatterOptions(
+                    include_datetime=True,
+                    include_logger_name=True,
+                    include_level_name=True,
+                ),
+                default_start=False
+            )
     ) -> None:
         self.features = features
         self.expected = expected
+        self.equality_on = equality_on
+        self.LOGGER = LOGGER
         self.startup()
         
     def startup(self):
@@ -1544,7 +1556,7 @@ class BaseFeaturesValidator:
     
     def validate(
         self,
-        received: Union[DataFrame, List[Dict]],
+        received: Any,
     ):
         raise NotImplementedError
 
@@ -1553,15 +1565,15 @@ class JSONFeaturesValidator(BaseFeaturesValidator):
         
     def startup(self):
         expected_df = DataFrame(self.expected)
-        expected_df = FeaturesTyper(self.features).type(expected_df)
+        expected_df = FeaturesTyper(self.features).type(expected_df, LOGGER=self.LOGGER)
         self.expected_df = expected_df[self.features.list_features_name()]
     
     def validate(
         self,
-        received: DataFrame,
+        received: List[Dict],
     ):
         received_df = DataFrame(received)
-        received_df = FeaturesTyper(self.features).type(received_df)
+        received_df = FeaturesTyper(self.features).type(received_df, LOGGER=self.LOGGER)
         received_df = received_df[self.features.list_features_name()]
         if not self.expected_df.equals(received_df):
             raise Exception("Received data is not equals to Expected data.")
@@ -1570,14 +1582,17 @@ class JSONFeaturesValidator(BaseFeaturesValidator):
 class DataFrameFeaturesValidator(BaseFeaturesValidator):
         
     def startup(self):
-        expected_df = FeaturesTyper(self.features).type(self.expected)
+        expected_df = FeaturesTyper(self.features).type(self.expected, LOGGER=self.LOGGER)
         self.expected_df = expected_df[self.features.list_features_name()]
     
     def validate(
         self,
         received: DataFrame,
     ):
-        received_df = FeaturesTyper(self.features).type(received)
+        received_df = FeaturesTyper(self.features).type(received, LOGGER=self.LOGGER)
         received_df = received_df[self.features.list_features_name()]
         if not self.expected_df.equals(received_df):
-            raise Exception("Received data is not equals to Expected data.")
+            self.LOGGER.error("Received data is EQUALS to Expected data.")
+            raise Exception("Received data is NOT EQUALS to Expected data.")
+        self.LOGGER.info("Received data is EQUALS to Expected data.")
+        
