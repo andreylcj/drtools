@@ -1032,6 +1032,7 @@ class BaseMultiFeatureTyper:
         self, 
         features: Union[Feature, Features],
         verbosity: bool=False,
+        numpy: bool=False,
         LOGGER: Logger=Logger(
                 name="BaseMultiFeatureTyper",
                 formatter_options=FormatterOptions(
@@ -1044,6 +1045,7 @@ class BaseMultiFeatureTyper:
     ):           
         self.features = features
         self.verbosity = verbosity
+        self.numpy = numpy
         self.LOGGER = LOGGER
         self._startup()
             
@@ -1120,7 +1122,7 @@ class BaseMultiFeatureTyper:
         **kwargs
     ) -> DataFrame:
         self.verbose_typing(feature_type, features)
-        dataframe = typer(features).type(dataframe, **kwargs)
+        dataframe = typer(features, numpy=self.numpy).type(dataframe, **kwargs)
         self.verbose_typing(feature_type, features, done=True)
         return dataframe
     
