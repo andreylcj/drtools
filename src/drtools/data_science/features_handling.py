@@ -1534,7 +1534,7 @@ class BaseFeaturesValidator:
         self,
         features: Features,
         expected: Any,
-        equality_on: Features,
+        equality: Features,
         LOGGER: Logger=Logger(
                 name="BaseFeaturesValidator",
                 formatter_options=FormatterOptions(
@@ -1547,52 +1547,120 @@ class BaseFeaturesValidator:
     ) -> None:
         self.features = features
         self.expected = expected
-        self.equality_on = equality_on
+        self.expected_df = self.parse_expected_data_to_dataframe(expected)
+        self.equality = equality
+        self._full_features_name: List[str] \
+            = self.equality.list_features_name() \
+                + self.features.list_features_name()
+        self.expected_df = self.expected_df[self._full_features_name]
         self.LOGGER = LOGGER
-        self.startup()
         
-    def startup(self):
-        raise NotImplementedError
-    
-    def validate(
-        self,
-        received: Any,
-    ):
-        raise NotImplementedError
-
-
-class JSONFeaturesValidator(BaseFeaturesValidator):
-        
-    def startup(self):
-        expected_df = DataFrame(self.expected)
-        expected_df = FeaturesTyper(self.features).type(expected_df, LOGGER=self.LOGGER)
-        self.expected_df = expected_df[self.features.list_features_name()]
-    
-    def validate(
-        self,
-        received: List[Dict],
-    ):
-        received_df = DataFrame(received)
-        received_df = FeaturesTyper(self.features).type(received_df, LOGGER=self.LOGGER)
-        received_df = received_df[self.features.list_features_name()]
-        if not self.expected_df.equals(received_df):
-            raise Exception("Received data is not equals to Expected data.")
-
-
-class DataFrameFeaturesValidator(BaseFeaturesValidator):
-        
-    def startup(self):
-        expected_df = FeaturesTyper(self.features).type(self.expected, LOGGER=self.LOGGER)
-        self.expected_df = expected_df[self.features.list_features_name()]
+        self.expected_df = FeaturesTyper(self.features).type(self.expected_df, LOGGER=self.LOGGER)
+        self.expected_df = FeaturesTyper(self.equality).type(self.expected_df, LOGGER=self.LOGGER)
     
     def validate(
         self,
         received: DataFrame,
     ):
-        received_df = FeaturesTyper(self.features).type(received, LOGGER=self.LOGGER)
-        received_df = received_df[self.features.list_features_name()]
-        if not self.expected_df.equals(received_df):
-            self.LOGGER.error("Received data is EQUALS to Expected data.")
-            raise Exception("Received data is NOT EQUALS to Expected data.")
+        received_df = self.parse_received_data_to_dataframe(received=received)
+        received_df = received_df[self._full_features_name]
+        received_df = FeaturesTyper(self.features).type(received_df, LOGGER=self.LOGGER)
+        received_df = FeaturesTyper(self.equality).type(received_df, LOGGER=self.LOGGER)
+        
+        received_df = received_df.rename({
+                col: f'received.{col}'
+                for col in received_df.columns
+            },
+            axis=1
+            )
+        
+        expected_df = self.expected_df.rename({
+                col: f'expected.{col}'
+                for col in self.expected_df.columns
+            },
+            axis=1
+            )
+        
+        right_on = [
+            f'received.{equality_feature_name}'
+            for equality_feature_name in self.equality.list_features_name()
+        ]
+        left_on = [
+            f'expected.{equality_feature_name}'
+            for equality_feature_name in self.equality.list_features_name()
+        ]
+        
+        merged_df = expected_df.merge(
+            received_df,
+            left_on=left_on,
+            right_on=right_on,
+            how='inner'
+        )
+        
+        expected_df_shape = expected_df.shape
+        received_df_shape = received_df.shape
+        merged_df_shape = merged_df.shape
+        
+        if expected_df_shape[0] != received_df_shape[0] \
+        or expected_df_shape[0] != merged_df_shape[0] \
+        or received_df_shape[0] != merged_df[0]:
+            self.LOGGER.error("Shape error.")
+            raise Exception("Shape error.")
+        
+        for feature in self.features.list_features():
+            
+            self.LOGGER.debug(f'Checking col {feature.name}...')
+            
+            expected_series = merged_df[f'expected.{feature.name}']
+            received_series = merged_df[f'received.{feature.name}']
+            
+            if not expected_series.equals(received_series):
+                self.LOGGER.error("Received data is NOT EQUALS to Expected data.")
+                raise Exception("Received data is NOT EQUALS to Expected data.")
+            
+            self.LOGGER.debug(f'Checking col {feature.name}... Done!')
+    
         self.LOGGER.info("Received data is EQUALS to Expected data.")
+        
+    def parse_expected_data_to_dataframe(
+        self,
+        expected: Any
+    ) -> DataFrame:
+        raise NotImplementedError
+    
+    def parse_received_data_to_dataframe(
+        self,
+        received: Any,
+    ) -> DataFrame:
+        raise NotImplementedError
+
+
+class JSONFeaturesValidator(BaseFeaturesValidator):
+        
+    def parse_expected_data_to_dataframe(
+        self,
+        expected: Any
+    ) -> DataFrame:
+        return DataFrame(expected)
+    
+    def parse_received_data_to_dataframe(
+        self,
+        received: Any
+    ) -> DataFrame:
+        return DataFrame(received)
+
+
+class DataFrameFeaturesValidator(BaseFeaturesValidator):
+        
+    def parse_expected_data_to_dataframe(
+        self,
+        expected: Any
+    ) -> DataFrame:
+        return expected
+    
+    def parse_received_data_to_dataframe(
+        self,
+        received: Any
+    ) -> DataFrame:
+        return received
         
