@@ -1536,7 +1536,7 @@ class BaseFeaturesValidator:
         self,
         constructor: BaseFeatureConstructor,
         features: Features,
-        equality: Features,
+        merge_on: Features,
         error_log_level: int=1, # 1 or 2
         numeric_error_tolerance: float=1e-3,
         datetime_error_tolerance: timedelta=timedelta(seconds=1),
@@ -1552,9 +1552,9 @@ class BaseFeaturesValidator:
     ) -> None:
         self.constructor = constructor
         self.features = features
-        self.equality = equality
+        self.merge_on = merge_on
         self._full_features_name: List[str] \
-            = self.equality.list_features_name() \
+            = self.merge_on.list_features_name() \
                 + self.features.list_features_name()
         self.error_log_level = error_log_level
         self.numeric_error_tolerance = numeric_error_tolerance
@@ -1581,12 +1581,12 @@ class BaseFeaturesValidator:
             )
         
         right_on = [
-            f'received.{equality_feature_name}'
-            for equality_feature_name in self.equality.list_features_name()
+            f'received.{merge_feature_name}'
+            for merge_feature_name in self.merge_on.list_features_name()
         ]
         left_on = [
-            f'expected.{equality_feature_name}'
-            for equality_feature_name in self.equality.list_features_name()
+            f'expected.{merge_feature_name}'
+            for merge_feature_name in self.merge_on.list_features_name()
         ]
         
         merged_df = expected_df.merge(
@@ -1613,13 +1613,13 @@ class BaseFeaturesValidator:
             
             # get err data
             error_data_cols \
-                = [f'expected.{col}' for col in self.equality.list_features_name()] \
+                = [f'expected.{col}' for col in self.merge_on.list_features_name()] \
                 + [expected_feature_name, received_feature_name]
                 
             error_data = merged_df[error_data_cols]
             error_data = error_data.rename({
-                    f'expected.{equality_feature_name}': equality_feature_name
-                    for equality_feature_name in self.equality.list_features_name()
+                    f'expected.{merge_feature_name}': merge_feature_name
+                    for merge_feature_name in self.merge_on.list_features_name()
                 },
                 axis=1
                 )
@@ -1710,7 +1710,7 @@ class JSONFeaturesValidator(BaseFeaturesValidator):
     ) -> DataFrame:
         expected_df = DataFrame(expected)
         expected_df = FeaturesTyper(self.features).type(expected_df, LOGGER=self.LOGGER)
-        expected_df = FeaturesTyper(self.equality).type(expected_df, LOGGER=self.LOGGER)
+        expected_df = FeaturesTyper(self.merge_on).type(expected_df, LOGGER=self.LOGGER)
         return expected_df
     
     def parse_payload_data_to_dataframe(
@@ -1727,7 +1727,7 @@ class JSONFeaturesValidator(BaseFeaturesValidator):
 #         expected: Any
 #     ) -> DataFrame:
 #         expected_df = FeaturesTyper(self.features).type(expected, LOGGER=self.LOGGER)
-#         expected_df = FeaturesTyper(self.equality).type(expected_df, LOGGER=self.LOGGER)
+#         expected_df = FeaturesTyper(self.merge_on).type(expected_df, LOGGER=self.LOGGER)
 #         return expected_df
     
 #     def parse_payload_data_to_dataframe(
