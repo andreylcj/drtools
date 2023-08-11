@@ -1554,8 +1554,11 @@ class BaseFeaturesValidator:
         self.features = features
         self.merge_on = merge_on
         self._full_features_name: List[str] \
-            = self.merge_on.list_features_name() \
-                + self.features.list_features_name()
+            = list_ops(
+                self.merge_on.list_features_name() \
+                + self.features.list_features_name(),
+                ops='union',
+            )
         self.error_log_level = error_log_level
         self.numeric_error_tolerance = numeric_error_tolerance
         self.datetime_error_tolerance = datetime_error_tolerance
@@ -1603,6 +1606,8 @@ class BaseFeaturesValidator:
         if expected_df_shape[0] != merged_df_shape[0]:
             self.LOGGER.error(f"Shape error. Expected: {expected_df_shape[0]:,} | Received: {received_df_shape[0]:,} | Merged: {merged_df_shape[0]:,}")
             raise Exception("Shape error.")
+        
+        self.LOGGER.debug(f"Shape has NO error.")
         
         for feature in self.features.list_features():
             

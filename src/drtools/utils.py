@@ -229,7 +229,7 @@ def list_ops(
         s = set(list2);
         return [x for x in list1 if x in s]
     elif ops == 'union':
-        return list_ops(list1, list2, ops='difference') + list2
+        return list1 + list_ops(list2, list1, ops='difference')
     else:
         raise Exception('Invalid "ops" option.')
 
