@@ -1555,8 +1555,8 @@ class BaseFeaturesValidator:
         self.merge_on = merge_on
         self._full_features_name: List[str] \
             = list_ops(
-                self.merge_on.list_features_name() \
-                + self.features.list_features_name(),
+                self.merge_on.list_features_name(),
+                self.features.list_features_name(),
                 ops='union',
             )
         self.error_log_level = error_log_level
