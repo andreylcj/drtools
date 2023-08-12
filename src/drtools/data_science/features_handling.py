@@ -239,6 +239,11 @@ class Feature:
             'name': self.name,
             'type': self.type.code if self.type is not None else None
         }
+        
+    def __eq__(self, other): 
+        if not isinstance(other, Feature):
+            return False
+        return self.name == other.name and self.type is other.type
 
 
 class StringFeature(Feature):
@@ -485,9 +490,47 @@ class Features:
     def add_feature(self, feature: Feature):
         self._features.append(feature)
     
+    def get_feature_by_name(self, name: str) -> Optional[Feature]:
+        for feature in self._features:
+            if feature.name == name:
+                return self._features
+        return None
+    
+    def remove_feature(self, feature: Feature) -> Feature:
+        for idx, _feature in enumerate(self._features):
+            if feature == _feature:
+                break
+        return self._features.pop(idx)
+    
+    def remove_feature_by_name(self, name: str) -> Feature:
+        for feature in self._features:
+            if feature.name == name:
+                break
+        return self.remove_feature(feature)
+    
+    def remove_features(self, features):
+        removed_features: List[Feature] = []
+        for feature2 in features:
+            for feature1 in self._features:
+                if feature2 == feature1:
+                    removed_features.append(self.remove_feature(feature2))
+        return Features(removed_features)
+    
     @property
     def info(self) -> List[Dict]:
         return [feature.info for feature in self._features]
+    
+    def __iter__(self):
+        return iter(list(self._features))
+    
+    def __len__(self):
+        return len(self._features)
+    
+    def __getitem__(self, item: int):
+        return self._features[item]
+    
+    def __add__(self, other):
+        return Features(self._features + other._features)
 
 
 class BaseFeatureConstructor:
@@ -659,7 +702,7 @@ class BaseFeatureConstructor:
         
         if self.pre_validate:
             dataframe = self._pre_validate(dataframe, **kwargs)
-            
+        
         response_dataframe = self.constructor(dataframe, **kwargs)
         
         if self.post_validate:
@@ -756,27 +799,29 @@ class BaseFeatureTyper(BaseFeatureConstructor):
 #################################
 class StringTyper(BaseFeatureTyper):
     def typer(self, dataframe: DataFrame, **kwargs) -> DataFrame:
+        
         dataframe[self._get_features_name()] \
             = dataframe.loc[:, self._get_features_name()] \
                 .astype(FeatureType.STR.type(self.numpy))
         
-        features: List[StringFeature] = self.features.list_features()
+        # features: List[StringFeature] = self.features.list_features()
         blank_features: Features = Features([
             feature
-            for feature in features
+            for feature in self.features
             if not feature.blank
         ])
         
-        if len(blank_features.list_features()) > 0:
+        if len(blank_features) > 0:
             dataframe[blank_features.list_features_name()  ] \
                 = dataframe.loc[:, blank_features.list_features_name()  ] \
                     .replace({"": None}) \
                     .astype(FeatureType.STR.type(self.numpy))
+
         return dataframe
     
     def styper(self, series: Series, **kwargs) -> Series:
         series_response: Series = series.astype(FeatureType.STR.type(self.numpy))
-        feature: StringFeature = self.features.list_features()[0]
+        feature: StringFeature = self.features[0]
         blank: bool = feature.blank
         if not blank:
             series_response = series_response \
@@ -1089,9 +1134,9 @@ class BaseMultiFeatureTyper:
         pass
         
     def _group_features_by_typing_method(self) -> Dict[FeatureType, Features]:
-        features: List[Feature] = self.features.list_features()
+        # features: List[Feature] = self.features.list_features()
         feature_type_to_features = {}
-        for feature in features:
+        for feature in self.features:
             if feature.type not in feature_type_to_features:
                 feature_type_to_features[feature.type] = Features()
             feature_type_to_features[feature.type].add_feature(feature)
@@ -1551,14 +1596,13 @@ class BaseFeaturesValidator:
             )
     ) -> None:
         self.constructor = constructor
-        self.features = features
-        self.merge_on = merge_on
+        self.features = deepcopy(features)
+        self.merge_on = deepcopy(merge_on)
+        self.unique_features_removed_merge_on = deepcopy(features)
+        self.unique_features_removed_merge_on.remove_features(self.merge_on)
         self._full_features_name: List[str] \
-            = list_ops(
-                self.merge_on.list_features_name(),
-                self.features.list_features_name(),
-                ops='union',
-            )
+            = self.merge_on.list_features_name() \
+                + self.unique_features_removed_merge_on.list_features_name()
         self.error_log_level = error_log_level
         self.numeric_error_tolerance = numeric_error_tolerance
         self.datetime_error_tolerance = datetime_error_tolerance
@@ -1609,7 +1653,7 @@ class BaseFeaturesValidator:
         
         self.LOGGER.debug(f"Shape has NO error.")
         
-        for feature in self.features.list_features():
+        for feature in self.features:
             
             self.LOGGER.debug(f'Validating feature {feature.name}...')
             
@@ -1618,8 +1662,8 @@ class BaseFeaturesValidator:
             
             # get err data
             error_data_cols \
-                = [f'expected.{col}' for col in self.merge_on.list_features_name()] \
-                + [expected_feature_name, received_feature_name]
+                = [f'expected.{col}' for col in self.merge_on.list_features_name()]
+                # + [expected_feature_name, received_feature_name]
                 
             error_data = merged_df[error_data_cols]
             error_data = error_data.rename({
@@ -1628,6 +1672,8 @@ class BaseFeaturesValidator:
                 },
                 axis=1
                 )
+            error_data[expected_feature_name] = merged_df[expected_feature_name].copy()
+            error_data[received_feature_name] = merged_df[received_feature_name].copy()
             
             if feature.type is FeatureType.DATETIME \
             or feature.type is FeatureType.DATETIMEUTC:
@@ -1674,23 +1720,33 @@ class BaseFeaturesValidator:
         payload: Any,
         expected: Any,
     ):
+        self.LOGGER.debug("Parsing expected data to dataframe...")
         expected_df = self.parse_expected_data_to_dataframe(
             expected=expected
         )
+        expected_df = expected_df[self._full_features_name]
+        self.LOGGER.debug("Parsing expected data to dataframe... Done!")
         
+        self.LOGGER.debug("Parsing payload data to dataframe...")
         payload_df = self.parse_payload_data_to_dataframe(
             payload=payload
-        )        
+        )
+        self.LOGGER.debug("Parsing payload data to dataframe... Done!")
+        
+        self.LOGGER.debug("Constructing features from payload...")
         received_df = self.constructor.construct(
             dataframe=payload_df,
             LOGGER=self.LOGGER
         )
         received_df = received_df[self._full_features_name]
+        self.LOGGER.debug("Constructing features from payload... Done!")
         
+        self.LOGGER.debug("Validating...")
         self._validate(
             expected_df=expected_df,
             received_df=received_df,
         )
+        self.LOGGER.debug("Validating... Done!")
     
         self.LOGGER.info("Feature Constructor Successfully Validated!")
         
