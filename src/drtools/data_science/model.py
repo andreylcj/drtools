@@ -4,7 +4,7 @@ from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path
 )
-from typing import List, Any, Dict, TypedDict, Tuple
+from typing import List, Any, Dict, Tuple
 from drtools.logging import Logger, FormatterOptions
 from drtools.utils import (
     list_ops
@@ -15,7 +15,8 @@ from drtools.data_science.features_handling import (
     Features, 
 )
 from enum import Enum
-        
+import joblib
+from sklearn.cluster import MiniBatchKMeans
         
 class MetricType(Enum):
     RMSE = "rmse", "Root Mean Square Error"
@@ -32,6 +33,7 @@ class MetricType(Enum):
 class AlgorithmType(Enum):
     LIGHTGBM = "lightgbm", "Light GBM",
     NN = "neuralnetwork", "Neural Network",
+    MINI_BATCH_KMEANS = "minibatchkmeans", "Mini Batch K-Means",
     
     @property
     def code(self) -> str:
@@ -423,5 +425,36 @@ class LightGbmModel(BaseModel):
         self.LOGGER.debug(f'Predicting data for model {self.model_name}...')  
         # model_instance = self.load_model(model_file_path)
         y_pred = model.predict(X, *args, **kwargs)
+        self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')        
+        return y_pred
+    
+    
+class MiniBatchKmeansModel(BaseModel):
+    
+    ALGORITHM: AlgorithmType = AlgorithmType.MINI_BATCH_KMEANS
+    
+    def load(self, model_file_path: str, *args, **kwargs) -> Any:
+        self.LOGGER.debug(f'Loading model {self.model_name}...')
+        model = joblib.load(model_file_path, *args, **kwargs)
+        self.LOGGER.debug(f'Loading model {self.model_name}... Done!')  
+        return model
+    
+    def save(self, model: Any, path: str, *args, **kwargs) -> None:
+        assert path.endswith(".pkl"), "File must be pickle."
+        self.LOGGER.debug(f'Saving model {self.model_name}...')
+        create_directories_of_path(path)
+        joblib.dump(model, path, *args, **kwargs)
+        self.LOGGER.debug(f'Saving model {self.model_name}... Done!')
+            
+    def train(self, X: Any, *args, **kwargs) -> Any:
+        self.LOGGER.debug(f'Training model {self.model_name}...')
+        model = MiniBatchKMeans(*args, **kwargs)
+        model.fit(X)
+        self.LOGGER.debug(f'Training model {self.model_name}... Done!')            
+        return model
+    
+    def predict(self, model: str, X: Any, *args, **kwargs) -> Any: 
+        self.LOGGER.debug(f'Predicting data for model {self.model_name}...')
+        y_pred = model.predict(X)
         self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')        
         return y_pred
