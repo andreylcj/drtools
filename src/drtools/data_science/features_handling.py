@@ -516,6 +516,19 @@ class Features:
                     removed_features.append(self.remove_feature(feature2))
         return Features(removed_features)
     
+    def drop_duplicates(self):
+        final_features: List[Feature] = []
+        for feature in self._features:
+            drop: bool = False
+            for feature1 in final_features:
+                if feature == feature1:
+                    drop = True
+                    break
+            if not drop:
+                final_features.append(feature)
+        self._features = Features(final_features)
+        return self._features
+    
     @property
     def info(self) -> List[Dict]:
         return [feature.info for feature in self._features]
