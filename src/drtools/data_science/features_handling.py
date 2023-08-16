@@ -1592,9 +1592,9 @@ class BaseFeaturesValidator:
     
     def __init__(
         self,
-        constructor: BaseFeatureConstructor,
         features: Features,
         merge_on: Features,
+        constructor: Optional[BaseFeatureConstructor]=None,
         error_log_level: int=1, # 1 or 2
         numeric_error_tolerance: float=1e-3,
         datetime_error_tolerance: timedelta=timedelta(seconds=1),
@@ -1747,10 +1747,13 @@ class BaseFeaturesValidator:
         self.LOGGER.debug("Parsing payload data to dataframe... Done!")
         
         self.LOGGER.debug("Constructing features from payload...")
-        received_df = self.constructor.construct(
-            dataframe=payload_df,
-            LOGGER=self.LOGGER
-        )
+        if self.constructor is not None:
+            received_df = self.constructor.construct(
+                dataframe=payload_df,
+                LOGGER=self.LOGGER
+            )
+        else:
+            received_df = payload_df
         received_df = received_df[self._full_features_name]
         self.LOGGER.debug("Constructing features from payload... Done!")
         
