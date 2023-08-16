@@ -6,6 +6,7 @@ in many situations.
 
 import os
 from datetime import datetime
+from dateutil import parser, tz
 import re
 import platform
 import json
@@ -228,7 +229,7 @@ def list_ops(
         s = set(list2);
         return [x for x in list1 if x in s]
     elif ops == 'union':
-        return list_ops(list1, list2, ops='difference') + list2
+        return list(list1) + list_ops(list2, list1, ops='difference')
     else:
         raise Exception('Invalid "ops" option.')
 
@@ -968,13 +969,13 @@ def to_dict(
     obj: Any,
     ignore_meta_when_expanded: bool=True,
     self_class_name: str="self",
-    ignore_attr: List[str]=[],
-    ignore_abs_name_spaces: List[str]=[],
-    custom_treatment_namespaces: List[CustomTreatment]=[],
-    custom_treatment_types: List[CustomTreatment]=[],
-    custom_treatment_obj_is: List[CustomTreatment]=[],
-    custom_treatment_obj_eq: List[CustomTreatment]=[],
-    custom_treatment_conditional: List[CustomTreatment]=[],
+    ignore_attr: Optional[List[str]]=None,
+    ignore_abs_name_spaces: Optional[List[str]]=None,
+    custom_treatment_namespaces: Optional[List[CustomTreatment]]=None,
+    custom_treatment_types: Optional[List[CustomTreatment]]=None,
+    custom_treatment_obj_is: Optional[List[CustomTreatment]]=None,
+    custom_treatment_obj_eq: Optional[List[CustomTreatment]]=None,
+    custom_treatment_conditional: Optional[List[CustomTreatment]]=None,
     ignore_exceptions: bool=False,
     exception_handler: Callable=None,
     depth_limit: int=5
@@ -991,6 +992,28 @@ def to_dict(
     Dict
         The Dict representation of object.
     """
+    
+    if ignore_attr is None:
+        ignore_attr = []
+
+    if ignore_abs_name_spaces is None:
+        ignore_abs_name_spaces = []
+
+    if custom_treatment_namespaces is None:
+        custom_treatment_namespaces = []
+
+    if custom_treatment_types is None:
+        custom_treatment_types = []
+
+    if custom_treatment_obj_is is None:
+        custom_treatment_obj_is = []
+
+    if custom_treatment_obj_eq is None:
+        custom_treatment_obj_eq = []
+
+    if custom_treatment_conditional is None:
+        custom_treatment_conditional = []
+
     
     expanded_at: Dict[Any, ExpandedAtMetaInfo] = {}
     
@@ -1255,3 +1278,70 @@ def get_dict_val(
         if idx < len(keys_depth) - 1:
             curr_data = deepcopy(d)
     return d
+
+
+def split_list(
+    input_list: List, 
+    batch_size: int
+) -> List[List]:
+    sub_lists = [
+        input_list[i: i+batch_size] 
+        for i in range(0, len(input_list), batch_size)
+    ]
+    return sub_lists
+
+
+def split_into_chunks(
+    input_list: List, 
+    chunksize: int=1
+):
+    if len(input_list) == 0 \
+    or chunksize == 0:
+        raise ValueError("List cannot be empty and group lenght must be greater than zero.")
+
+    chunks_list = []
+    batch_size: int = len(input_list) // chunksize
+
+    if batch_size > 0:
+        for i in range(0, len(input_list), batch_size):
+            chunk = input_list[i:i + batch_size]
+            chunks_list.append(chunk)
+    
+    else:
+        chunks_list = [input_list]
+
+    return chunks_list
+
+
+def iso_parser(date_str: str) -> datetime:
+    """Iso Parser.
+    """
+    response = None
+    error = False
+    try:
+        response = datetime.fromisoformat(date_str)
+    except:
+        error = True    
+    if error:
+        error = False
+        try:
+            response = parser.isoparse(date_str)
+        except:
+            error = True            
+    if error:
+        raise Exception(f"Invalid date: {date_str}")
+    return response
+
+
+def smart_tz_handle(date_str):
+    """Parse date as string handling timezone.
+    """
+    try:
+        date = parser.parse(date_str)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=tz.tzutc())
+        # Retorna a representação em string da data com o fuso horário UTC
+        return date.strftime('%Y-%m-%dT%H:%M:%S.%f %z')
+    except Exception as e:
+        # print(f"Erro ao processar a data: {e}")
+        return None

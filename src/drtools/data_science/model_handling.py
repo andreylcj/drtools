@@ -2,9 +2,6 @@
 
 from pandas import DataFrame
 import pandas as pd
-from datetime import datetime
-import logging
-from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path
 )
@@ -14,7 +11,7 @@ from drtools.utils import (
     list_ops
 )
 from drtools.data_science.features_handle import (
-    ExtendedFeatureJSON, Categorical, Features, Feature, FeatureType
+    Categorical, Features, Feature, FeatureType
 )
 from enum import Enum
 
@@ -126,8 +123,8 @@ class BaseModel:
         input_features: Features,
         output_features: Features,
         extra_features: Features,
-        training_information: Dict={},
-        metrics: List=[],
+        training_information: Dict=None,
+        metrics: List=None,
   		LOGGER: Logger=None,
         chained_assignment_log: bool=False
     ) -> None:
@@ -144,6 +141,12 @@ class BaseModel:
             If False, put pandas chained assignment equals None, 
             If True, do not change anything, by default False.
         """
+        if training_information is None:
+            training_information = {}
+            
+        if metrics is None:
+            metrics = []
+        
         self.name = name
         self.version = version
         self.algorithm_infrastructure = algorithm_infrastructure
@@ -244,7 +247,7 @@ class BaseModel:
             + output_features_name
         return pretty_cols
     
-    @start_end_log('load_model')
+    # @start_end_log('load_model')
     def load_model(
         self,
         model_file_path: str,
@@ -276,7 +279,7 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('save_model')
+    # @start_end_log('save_model')
     def save_model(
         self,
         model_instance: Any,
@@ -311,7 +314,7 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('train')
+    # @start_end_log('train')
     def train(
         self,
         model_instance: Any,
@@ -320,7 +323,7 @@ class BaseModel:
     ) -> Any:
         pass
     
-    @start_end_log('predict')
+    # @start_end_log('predict')
     def predict(
         self,
         model_file_path: str,
@@ -355,7 +358,7 @@ class BaseModel:
         """    
         pass
     
-    @start_end_log('label_encoding')
+    # @start_end_log('label_encoding')
     def label_encoding(
         self,
         dataframe: DataFrame,

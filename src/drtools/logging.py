@@ -7,9 +7,9 @@ of any .py or .ipynb file
 
 import sys
 import logging
-from typing import Any, Union, TypedDict, Dict, Type, Callable
+from typing import Any, Union, Callable
 from drtools.file_manager import (
-    split_path, create_directories_of_path
+    create_directories_of_path
 )
 from functools import wraps
 import logging
@@ -60,10 +60,21 @@ class FormatterOptions:
     ) -> None:
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
-        self._start_default_settings()
+        
+        start_default = True
         for k, v in args.items():
             if v is not None:
-                setattr(self, k, v)
+                start_default = False
+                break
+            
+        if start_default:
+            self._start_default_settings()
+        else:
+            for k, v in args.items():
+                if v is not None:
+                    setattr(self, k, v)
+                else:
+                    setattr(self, k, False)
 
     def _start_default_settings(self):
         self.include_thread_name = True
@@ -217,7 +228,7 @@ class Logger:
             
         formatter_text += '%(message)s'
         
-        formatter = logging.Formatter(formatter_text, datefmt='%d-%m-%Y %H:%M:%S')
+        formatter = logging.Formatter(formatter_text, datefmt='%Y-%m-%d %H:%M:%S')
         
         return formatter
     

@@ -5,12 +5,13 @@ This module was created to handle time series stuff.
 
 
 from typing import List, Union
-import drtools.utils as Utils
-from pandas.core.frame import DataFrame
+from drtools.utils import split_into_chunks, list_ops
+from pandas import DataFrame, Series
 import pandas as pd
 import math
 import numpy as np
-from drtools.logging import Logger
+from drtools.logging import Logger, FormatterOptions
+from datetime import datetime
 
 
 OneDimension = int
@@ -109,9 +110,9 @@ def time_series_data_generator(
     id_col: str,
     target_col: str,
     series_size: int,
-    ignore_cols: List[str]=[],
-    data_leak_cols: List[str]=[],
-    immutable_cols: List[str]=[],
+    ignore_cols: List[str]=None,
+    data_leak_cols: List[str]=None,
+    immutable_cols: List[str]=None,
     light: bool=False,
     dtype: bool=True,
     chunksize: int=1,
@@ -164,6 +165,15 @@ def time_series_data_generator(
     DataFrame
         The DataFrame after transform the data into Time Series.
     """
+    if ignore_cols is None:
+        ignore_cols = []
+        
+    if data_leak_cols is None:
+        data_leak_cols = []
+        
+    if immutable_cols is None:
+        immutable_cols = []
+        
     
     LOGGER.debug(f'Preprocess data...')
     
@@ -181,7 +191,7 @@ def time_series_data_generator(
     
     temp_columns = [id_col, time_col, target_col]
         
-    real_features_columns = Utils.list_ops(
+    real_features_columns = list_ops(
         df.columns,
         temp_columns + ignore_cols
     )
@@ -192,14 +202,14 @@ def time_series_data_generator(
     
     # df = df.sort_values(by=[id_col, time_col])
     
-    real_ignore_cols = Utils.list_ops(ignore_cols, [id_col]) + [id_col]
+    real_ignore_cols = list_ops(ignore_cols, [id_col]) + [id_col]
     ignore_data_df = df.loc[:, real_ignore_cols]
     
     df = df.loc[:, [id_col, time_col] + real_features_columns + [target_col]]
     
     df_columns = df.columns
         
-    mutable_columns = Utils.list_ops(
+    mutable_columns = list_ops(
         real_features_columns + [target_col],
         immutable_cols
     )
@@ -314,7 +324,7 @@ def time_series_data_generator(
         if LOGGER is not None:
             LOGGER.debug(f'Removing data leak cols...')
             
-        final_columns = Utils.list_ops(
+        final_columns = list_ops(
             final_columns,
             data_leak_cols
         )
@@ -393,7 +403,7 @@ def time_series_data_split(
     dataframe: DataFrame,
     time_col: str,
     target_col: str,
-    sizes: List[float]=[0.5, 0.2, 0.3],
+    sizes: List[float]=None,
     light: bool=False,
     drop_time_col: bool=False,
 ) -> List[DataFrame]:
@@ -424,6 +434,8 @@ def time_series_data_split(
     List[DataFrame]
         List of X and y dataframes.
     """
+    if sizes is None:
+        sizes = [0.5, 0.2, 0.3]
     
     if light:
         df = dataframe
@@ -475,3 +487,93 @@ def time_series_data_split(
     del df
     
     return resp
+
+
+def add_previous_values_by_group(
+    dataframe: DataFrame, 
+    group_column: str,
+    time_column: str, 
+    window_size: int,
+    columns: List[str],
+    light: bool=False,
+    window_absolute_value: bool=False,
+    sort_values: bool=True,
+    chunksize: int=1, # If not provided will compute at once
+    LOGGER: Logger=Logger(
+        name="AddPreviousValuesByGroup",
+        formatter_options=FormatterOptions(
+            include_datetime=True,
+            include_thread_name=True,
+            include_logger_name=True,
+            include_level_name=True
+        ),
+        default_start=False
+    )
+):
+    if light:
+      df: DataFrame = dataframe
+    else:
+      df: DataFrame = dataframe.copy()
+
+    if sort_values:
+      df.sort_values(by=[group_column, time_column], inplace=True)
+
+    original_index = df.index
+    unique_group_col_values: List = df[group_column].unique()
+
+    group_col_chunks: List[List] \
+      = split_into_chunks(unique_group_col_values, chunksize)
+
+    total_chunks: int = len(group_col_chunks)
+
+    final_df: DataFrame = None
+
+    start_range: int = 1 if not window_absolute_value else window_size
+
+    for idx, group_col_chunk in enumerate(group_col_chunks):
+        curr_idx: int = idx + 1
+        started_at: datetime = datetime.now()
+
+        LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Computing chunk...')
+
+        work_df: DataFrame = df[df[group_column].isin(group_col_chunk)].copy()
+        df: DataFrame = df[~df[group_column].isin(group_col_chunk)]
+        
+        LOGGER.debug(f'Chunk Shape: ({work_df.shape[0]:,}, {work_df.shape[1]:,})')
+        LOGGER.debug(f'Remaining Data Shape: ({df.shape[0]:,}, {df.shape[1]:,})')
+
+        new_column_names: List[str] = []
+        new_columns: List[Series] = []
+
+        for i in range(start_range, window_size + 1):
+            for col in columns:
+                col_name: str = f"{col}_n-{i}"
+                new_column_names.append(col_name)
+                new_columns.append(work_df.groupby(group_column)[col].shift(i))
+
+        new_df: DataFrame = pd.concat(new_columns, axis=1)
+        new_df.columns: List[str] = new_column_names
+        work_df: DataFrame = pd.concat([work_df, new_df], axis=1)
+
+        if final_df is None:
+            final_df: DataFrame = work_df.copy()
+        
+        else:
+            final_df: DataFrame = pd.concat([
+                    final_df,
+                    work_df
+                ],
+                axis=0,
+                ignore_index=True
+            )
+            
+        LOGGER.debug(f'Final Data Shape: ({final_df.shape[0]:,}, {final_df.shape[1]:,})')
+
+        duration: float = round((datetime.now() - started_at).total_seconds(), 2)
+        LOGGER.debug(f'({curr_idx:,}/{total_chunks:,}) Chunk computation ends in {duration}s.')
+
+    del df
+
+    final_df.set_index(original_index, inplace=True)
+
+    return final_df

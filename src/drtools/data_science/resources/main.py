@@ -14,7 +14,6 @@ import logging
 from drtools.utils import (
     ValueRestrictions, ValueRestrictionsAsJson
 )
-from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path, rm_file, 
     list_path_of_all_files_inside_directory
@@ -181,8 +180,8 @@ def typeraze(
     dataframe: DataFrame,
     features: List[SimpleFeature],
     dtypes: List[str]=None,
-    ignore_dtypes: List[str]=[],
-    custom_treatment: List[TypeColumm]=[],
+    ignore_dtypes: List[str]=None,
+    custom_treatment: List[TypeColumm]=None,
     utc: Union[bool, None]=None,
     to_numeric: bool=False,
     LOGGER: Logger=None,
@@ -225,6 +224,12 @@ def typeraze(
     Exception
         When some error occurs when typing some column.
     """
+    if ignore_dtypes is None:
+        ignore_dtypes = []
+
+    if custom_treatment is None:
+        custom_treatment = []
+
         
     df = dataframe.copy()
 
@@ -498,7 +503,7 @@ class Model:
             + output_features_name
         return pretty_cols
     
-    @start_end_log('load_model')
+    # @start_end_log('load_model')
     def load_model(
         self,
         model_file_path: str,
@@ -542,7 +547,7 @@ class Model:
         self.LOGGER.debug(f'Loading model {self.get_model_name()}... Done!')        
         return model
     
-    @start_end_log('save_model')
+    # @start_end_log('save_model')
     def save_model(
         self,
         model_instance: Any,
@@ -587,7 +592,7 @@ class Model:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')        
         self.LOGGER.debug(f'Saving model {self.get_model_name()}... Done!')
     
-    @start_end_log('train')
+    # @start_end_log('train')
     def train(
         self,
         model_instance: Any,
@@ -630,7 +635,7 @@ class Model:
         else:
             raise Exception(f'Algorithm {self.model_algorithm} is invalid.')
     
-    @start_end_log('predict')
+    # @start_end_log('predict')
     def predict(
         self,
         model_file_path: str,
@@ -675,7 +680,7 @@ class Model:
         self.LOGGER.debug(f'Predicting data for model {self.get_model_name()}... Done!')        
         return y_pred
     
-    @start_end_log('one_hot_encoding')
+    # @start_end_log('one_hot_encoding')
     def one_hot_encoding(
         self,
         dataframe: DataFrame,
@@ -714,7 +719,7 @@ class Model:
                     df[curr_feature['name']] = 0
         return df
     
-    @start_end_log('label_encoding')
+    # @start_end_log('label_encoding')
     def label_encoding(
         self,
         dataframe: DataFrame,
@@ -766,12 +771,12 @@ class Model:
                     df[col] = df[col].replace(encode[col])        
         return df
     
-    @start_end_log('filter')
+    # @start_end_log('filter')
     def filter(
         self,
         dataframe: DataFrame,
         filter_only: List[str]=None,
-        ignore_features: List[str]=[],
+        ignore_features: List[str]=None,
         ignore_categorical: bool=False,
         ignore_numerical: bool=False,
         custom: List[Feature]=None,
@@ -815,6 +820,8 @@ class Model:
         Exception
             If "description" fielf of Feature is invalid.
         """
+        if ignore_features is None:
+            ignore_features = []
         
         df = dataframe.copy()
         
@@ -960,13 +967,13 @@ class Model:
             
         return df
     
-    @start_end_log('typeraze')
+    # @start_end_log('typeraze')
     def typeraze(
         self,
         dataframe: DataFrame,
         as_model_input: bool=False,
         type_only: List[str]=None,
-        ignore_features: List[str]=[],
+        ignore_features: List[str]=None,
         custom: List[Feature]=None,
         **kwargs
     ) -> DataFrame:
@@ -999,6 +1006,9 @@ class Model:
         DataFrame
             The typed DataFrame.
         """
+        if ignore_features is None:
+            ignore_features = []
+        
         all_features_name = self.cols_correct_order()
         
         input_features_name = self.input_features_name()
@@ -1146,12 +1156,12 @@ class Database(ABC):
         """
         return f'{self.SCHEMA}.{self.TABLE}'
     
-    @start_end_log('typeraze')
+    # @start_end_log('typeraze')
     def typeraze(
         self,
         dataframe: DataFrame,
         dtypes: List[str]=None,
-        ignore_dtypes: List[str]=[],
+        ignore_dtypes: List[str]=None,
         verbosity: bool=False,
         **kwargs
     ) -> DataFrame:
@@ -1181,6 +1191,8 @@ class Database(ABC):
         Exception
             When some error occurs when typing some column.
         """
+        if ignore_dtypes is None:
+            ignore_dtypes = []
             
         df = dataframe.copy()
         useful_cols = list_ops(
@@ -1274,7 +1286,7 @@ class Database(ABC):
             
         return df
     
-    @start_end_log('_save_data')
+    # @start_end_log('_save_data')
     def _save_data(
         self,
         dataframe: DataFrame,
@@ -1478,7 +1490,7 @@ class Database(ABC):
         
         return inserted_ids
         
-    @start_end_log('delete_by_id')
+    # @start_end_log('delete_by_id')
     def delete_by_id(
         self,
         ids: List[int]
@@ -1519,7 +1531,7 @@ class Database(ABC):
         
         return sorted(list(ids))
     
-    @start_end_log('update_by_id')
+    # @start_end_log('update_by_id')
     def update_by_id(
         self,
         dataframe: DataFrame
@@ -1648,7 +1660,7 @@ class ModelCatalogue(Database):
     
     TABLE = 'catalogue'
     
-    @start_end_log('get_model')
+    # @start_end_log('get_model')
     def get_model(
         self,
         when: ModelCatalogueWhen,

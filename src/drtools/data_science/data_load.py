@@ -6,7 +6,8 @@ For instance: .csv, .txt, .parquet, .gz and so on.
 
 
 from drtools.file_manager import (
-    create_directories_of_path, search_by_name_on_directory,
+    create_directories_of_path, 
+    search_by_name_on_directory,
     list_path_of_all_files_inside_directory
 )
 from typing import Union

@@ -7,11 +7,12 @@ which will be mostly used in EDA.
 
 from drtools.utils import list_ops, to_title
 from drtools.file_manager import create_directories_of_path
-from drtools.data_science.data_handle import prepare_bins, binning_numerical_variable
-from types import FunctionType
-from typing import Dict, List, Tuple, Union
+from drtools.data_science.data_handle import (
+    prepare_bins, 
+    binning_numerical_variable
+)
+from typing import Dict, List, Tuple, Union, Callable, Any
 import pandas as pd
-from typing import Any
 from pandas import DataFrame, Series
 from numpy import inf
 import seaborn as sns
@@ -144,10 +145,12 @@ class Legend:
         self,
         active: bool=False,
         title: str='',
-        labels: List[str]=[],
+        labels: List[str]=None,
         loc='upper right',
         bbox_to_anchor: Tuple[float, float]=None,
     ) -> None:
+        if labels is None:
+            labels = []
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
         for k, v in args.items():
@@ -170,9 +173,9 @@ class TwinxValuesCalculation:
     def __init__(
         self,
         column: str=None,
-        apply: FunctionType=None,
+        apply: Callable=None,
         agg: str=None,
-        filter_function: FunctionType=None,
+        filter_function: Callable=None,
     ) -> None:
         self.column = column
         self.apply = apply
@@ -188,8 +191,8 @@ class Twinx:
     def __init__(
         self,  
         active: bool=False,
-        x: Union[List, Series]=[],
-        y: Union[List, Series]=[],
+        x: Union[List, Series]=None,
+        y: Union[List, Series]=None,
         ylabel: str='Twinx Axe',
         ylim: Tuple[float, float]=(0, 1),
         color: str='tab:olive',
@@ -199,7 +202,7 @@ class Twinx:
         fillna: any=0,        
         legend: Legend=Legend(),
         twinx_values_calculation: TwinxValuesCalculation=TwinxValuesCalculation(),
-        apply: List[FunctionType]=None,
+        apply: List[Callable]=None,
     ) -> None:
         # if active \
         # and twinx_values_calculation.column is None:
@@ -214,7 +217,10 @@ class Twinx:
         #     text = 'If "active" is True, "twinx_values_calculation.apply" '
         #     text += 'or "twinx_values_calculation.agg" need to be specified.'
         #     raise Exception(text)  
-             
+        if x is None:
+            x = []
+        if y is None:
+            y = []
         args = locals().copy()
         args = {k: v for k, v in args.items() if k != 'self'}
         for k, v in args.items():
@@ -265,11 +271,9 @@ def bar(
     figsize: Tuple[int, int]=(10, 5),
     fillna: float=0,
     na_as_class: bool=False,
-    ignore_columns: List=[],
-    sort_index_attr: dict={
-        'ascending': True
-    },
-    sort_values_attr: dict={},
+    ignore_columns: List=None,
+    sort_index_attr: dict=None,
+    sort_values_attr: dict=None,
     rotate_x: int=0,
     twinx: Union[Twinx, List[Twinx]]=Twinx(),
     legend: Legend=Legend(
@@ -318,6 +322,14 @@ def bar(
     None
         **None** is returned
     """
+    if sort_index_attr is None:
+        sort_index_attr = {'ascending': True}
+        
+    if sort_values_attr is None:
+        sort_values_attr = {}
+    
+    if ignore_columns is None:
+        ignore_columns = []
     
     sns.set_style('darkgrid')
     df = dataframe.copy()
