@@ -7,11 +7,12 @@ which will be mostly used in EDA.
 
 from drtools.utils import list_ops, to_title
 from drtools.file_manager import create_directories_of_path
-from drtools.data_science.data_handle import prepare_bins, binning_numerical_variable
-from types import FunctionType
-from typing import Dict, List, Tuple, Union
+from drtools.data_science.data_handle import (
+    prepare_bins, 
+    binning_numerical_variable
+)
+from typing import Dict, List, Tuple, Union, Callable, Any
 import pandas as pd
-from typing import Any
 from pandas import DataFrame, Series
 from numpy import inf
 import seaborn as sns
@@ -172,9 +173,9 @@ class TwinxValuesCalculation:
     def __init__(
         self,
         column: str=None,
-        apply: FunctionType=None,
+        apply: Callable=None,
         agg: str=None,
-        filter_function: FunctionType=None,
+        filter_function: Callable=None,
     ) -> None:
         self.column = column
         self.apply = apply
@@ -201,7 +202,7 @@ class Twinx:
         fillna: any=0,        
         legend: Legend=Legend(),
         twinx_values_calculation: TwinxValuesCalculation=TwinxValuesCalculation(),
-        apply: List[FunctionType]=None,
+        apply: List[Callable]=None,
     ) -> None:
         # if active \
         # and twinx_values_calculation.column is None:

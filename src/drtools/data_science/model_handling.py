@@ -2,9 +2,6 @@
 
 from pandas import DataFrame
 import pandas as pd
-from datetime import datetime
-import logging
-from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path
 )
@@ -250,7 +247,7 @@ class BaseModel:
             + output_features_name
         return pretty_cols
     
-    @start_end_log('load_model')
+    # @start_end_log('load_model')
     def load_model(
         self,
         model_file_path: str,
@@ -282,7 +279,7 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('save_model')
+    # @start_end_log('save_model')
     def save_model(
         self,
         model_instance: Any,
@@ -317,7 +314,7 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('train')
+    # @start_end_log('train')
     def train(
         self,
         model_instance: Any,
@@ -326,7 +323,7 @@ class BaseModel:
     ) -> Any:
         pass
     
-    @start_end_log('predict')
+    # @start_end_log('predict')
     def predict(
         self,
         model_file_path: str,
@@ -361,7 +358,7 @@ class BaseModel:
         """    
         pass
     
-    @start_end_log('label_encoding')
+    # @start_end_log('label_encoding')
     def label_encoding(
         self,
         dataframe: DataFrame,

@@ -7,9 +7,9 @@ of any .py or .ipynb file
 
 import sys
 import logging
-from typing import Any, Union, TypedDict, Dict, Type, Callable
+from typing import Any, Union, Callable
 from drtools.file_manager import (
-    split_path, create_directories_of_path
+    create_directories_of_path
 )
 from functools import wraps
 import logging
