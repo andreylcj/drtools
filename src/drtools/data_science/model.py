@@ -1,6 +1,5 @@
 
 
-from drtools.decorators import start_end_log
 from drtools.file_manager import (
     create_directories_of_path
 )
@@ -281,12 +280,15 @@ class BaseModel:
         for k, v in self.model_definition.__dict__.items():
             setattr(self, k, v)
         self.LOGGER = LOGGER
+        self._model_instance = None
     
     @property
     def model_name(self) -> str:
         return self.model_definition.model_name
     
-    @start_end_log('load')
+    def set_model_instance(self, model_instance: Any):
+        self._model_instance = model_instance
+    
     def load(
         self,
         model_file_path: str,
@@ -318,7 +320,6 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('save')
     def save(
         self,
         model: Any,
@@ -353,7 +354,6 @@ class BaseModel:
         """
         pass
     
-    @start_end_log('train')
     def train(
         self,
         *args,
@@ -361,11 +361,21 @@ class BaseModel:
     ) -> Any:
         pass
     
-    @start_end_log('predict')
     def predict(
         self,
-        model: Any,
         X: Any,
+        model=None,
+        *args,
+        **kwargs
+    ):
+        if model is None:
+            model = self._model_instance
+        return self._predict(X, model, *args, **kwargs)
+    
+    def _predict(
+        self,
+        X: Any,
+        model: Any,
         *args,
         **kwargs
     ) -> Any:    
@@ -393,7 +403,7 @@ class BaseModel:
         ------
         Exception
             If model algorithm is invalid
-        """    
+        """
         pass
     
     
@@ -405,7 +415,7 @@ class LightGbmModel(BaseModel):
         self.LOGGER.debug(f'Loading model {self.model_name}...')  
         import lightgbm as lgb
         model = lgb.Booster(model_file=model_file_path, *args, **kwargs)
-        self.LOGGER.debug(f'Loading model {self.model_name}... Done!')  
+        self.LOGGER.debug(f'Loading model {self.model_name}... Done!')
         return model
     
     def save(self, model: Any, path: str, *args, **kwargs) -> None:
@@ -418,14 +428,13 @@ class LightGbmModel(BaseModel):
         self.LOGGER.debug(f'Training model {self.model_name}...')
         import lightgbm as lgb
         model_instance = lgb.train(*args, **kwargs)
-        self.LOGGER.debug(f'Training model {self.model_name}... Done!')            
+        self.LOGGER.debug(f'Training model {self.model_name}... Done!')
         return model_instance
     
-    def predict(self, model: str, X: Any, *args, **kwargs) -> Any: 
-        self.LOGGER.debug(f'Predicting data for model {self.model_name}...')  
-        # model_instance = self.load_model(model_file_path)
+    def _predict(self, X: Any, model, *args, **kwargs) -> Any:
+        self.LOGGER.debug(f'Predicting data for model {self.model_name}...')
         y_pred = model.predict(X, *args, **kwargs)
-        self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')        
+        self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')
         return y_pred
     
     
@@ -450,11 +459,37 @@ class MiniBatchKmeansModel(BaseModel):
         self.LOGGER.debug(f'Training model {self.model_name}...')
         model = MiniBatchKMeans(*args, **kwargs)
         model.fit(X)
-        self.LOGGER.debug(f'Training model {self.model_name}... Done!')            
+        self.LOGGER.debug(f'Training model {self.model_name}... Done!')
         return model
     
-    def predict(self, model: str, X: Any, *args, **kwargs) -> Any: 
+    def _predict(self, X: Any, model, *args, **kwargs) -> Any: 
         self.LOGGER.debug(f'Predicting data for model {self.model_name}...')
         y_pred = model.predict(X)
-        self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')        
+        self.LOGGER.debug(f'Predicting data for model {self.model_name}... Done!')
         return y_pred
+    
+
+class ModelHandler:
+    def __init__(self) -> None:
+        pass
+    
+    @classmethod
+    def smart_load_model(
+        cls,
+        model_definition: ModelDefinition,
+        LOGGER: Logger=None, 
+    ) -> BaseModel:
+        if model_definition['algorithm'] == AlgorithmType.LIGHTGBM.name:
+            return LightGbmModel(
+                model_definition=model_definition,
+                LOGGER=LOGGER, 
+            )
+        
+        elif model_definition['algorithm'] == AlgorithmType.MINI_BATCH_KMEANS.name:
+            return MiniBatchKmeansModel(
+                model_definition=model_definition,
+                LOGGER=LOGGER, 
+            )
+            
+        else:
+            raise Exception(f"Algorithm {model_definition['algorithm']} not supported.")
