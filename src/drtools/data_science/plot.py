@@ -7,7 +7,7 @@ which will be mostly used in EDA.
 
 from drtools.utils import list_ops, to_title
 from drtools.file_manager import create_directories_of_path
-from drtools.data_science.data_handle import (
+from drtools.data_science.utils import (
     prepare_bins, 
     binning_numerical_variable
 )
@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 import math
 from sklearn.inspection import permutation_importance as sklearn_permutation_importance
-# import shap
 
 
 COLORS = [
