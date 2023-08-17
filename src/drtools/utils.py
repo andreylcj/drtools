@@ -904,3 +904,26 @@ def smart_tz_handle(date_str):
     except Exception as e:
         # print(f"Erro ao processar a data: {e}")
         return None
+    
+    
+class ExpectedRemainingTimeHandle:
+    """Handle expected remaining time on iterations or 
+    thread executions.
+    """
+
+    def __init__(self, total: int) -> None:
+        self.total = total
+        self.started_at = datetime.now()
+
+    def _total_seconds(self, executed_num: int):
+        return (datetime.now() - self.started_at).total_seconds()
+
+    def _speed(self, executed_num: int):
+        return self._total_seconds(executed_num) / executed_num
+
+    def seconds(self, executed_num: int) -> float:
+        speed = self._speed(executed_num)
+        return speed * (self.total - executed_num)
+
+    def display_time(self, executed_num: int, granularity: int=2) -> str:
+        return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
