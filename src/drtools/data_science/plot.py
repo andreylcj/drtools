@@ -924,30 +924,3 @@ def permutation_importance(
         savefig(savefig_path)
         
     plt.show()
-    
-
-# def shap_importance(
-#     model: Any,
-#     X: DataFrame,
-# ) -> None:
-#     """Plot most important features using Shap Importance
-
-#     Parameters
-#     ----------
-#     model : Any
-#         Model instance
-#     X : DataFrame
-#         X data as DataFrame
-#     """
-#     # Explain model predictions using shap library:
-#     explainer = shap.TreeExplainer(model)
-#     shap_values = explainer.shap_values(X)
-    
-#     # Plot summary_plot
-#     shap.summary_plot(shap_values, X, plot_type='bar')
-    
-    
-    
-    
-    
-    
