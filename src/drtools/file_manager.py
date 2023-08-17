@@ -14,25 +14,6 @@ import json
 import gzip
 
 
-def path_exist(
-    path: str
-) -> bool: 
-    """Verify if path exists.
-
-    Parameters
-    ----------
-    path : str
-        Path to be verified
-
-    Returns
-    -------
-    bool
-        If True, path exists, if False, path does
-        not exists.
-    """
-    return os.path.exists(path)
-
-
 def split_path(
     path: str
 ) -> List[str]:
@@ -74,9 +55,9 @@ def move_file(
         If destination path already exists
     """
     
-    if not path_exist(current_path):
+    if not os.path.exists(current_path):
         raise Exception('Current path does not exists.')
-    if path_exist(destination_path):
+    if os.path.exists(destination_path):
         raise Exception('Destination path already exists.')   
     
     create_directories_of_path(destination_path)
@@ -209,29 +190,6 @@ def list_path_of_all_files_inside_directory(
             ignore_if_contain_some_of_the_words=ignore_if_contain_some_of_the_words
         )
     return itemsPath
-
-
-def search_by_name_on_directory(
-    name: str, 
-    directory: str,
-) -> List[str]:
-    """Search files that contain substring on name inside directory
-
-    Parameters
-    ----------
-    name : str
-        Name of file that will be searched
-    dir : str
-        Directory to search for file
-
-    Returns
-    -------
-    List[str]
-        All file names that was found
-    """
-    content = os.listdir(directory)
-    result = [filename for filename in content if name in filename]
-    return result
     
     
 def create_directories_of_path(

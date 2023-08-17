@@ -8,7 +8,7 @@ from drtools.logging import Logger, FormatterOptions
 from drtools.utils import (
     list_ops
 )
-from drtools.data_science.features_handling import (
+from drtools.data_science.features import (
     FeatureType,
     Feature, 
     Features, 
@@ -150,7 +150,8 @@ class ModelDefinition:
         output_features: List[Feature],
         extra_features: List[Feature],
         training_information: TrainingInformation,
-        metrics: Metrics
+        metrics: Metrics,
+        extra_information: Dict=None,
     ) -> None:
         self.algorithm = algorithm
         self.name = name
@@ -163,6 +164,7 @@ class ModelDefinition:
         self.extra_features = extra_features
         self.training_information = training_information
         self.metrics = metrics
+        self.extra_information = extra_information
          
     @property
     def pretty_cols(

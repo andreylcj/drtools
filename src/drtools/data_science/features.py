@@ -23,71 +23,6 @@ from copy import deepcopy
 from datetime import timedelta
 
 
-def one_hot_encoding(
-    dataframe: DataFrame,
-    column: str,
-    encode_values: List[Union[str, int]],
-    prefix: str=None,
-    prefix_sep: str="_",
-    drop_self_col: bool=True,
-    drop_redundant_col_val: str=None
-) -> DataFrame:
-    """One hot encode one column, drop original column after 
-    generate encoded and drop dummy cols that is not desired on 
-    final data.
-    
-    Parameters
-    ----------
-    dataframe : DataFrame
-        DataFrame containing data to encode.
-    column : str
-        Name of column to one hot encode.
-    encode_values: List[Union[str, int]]
-        List of values to encode.
-    prefix: str, optional
-        Prefix of encoded column. If None, 
-        the prefix will be the column name, by default None.
-    prefix_sep: str, optional
-        Separation string of Prefix and Encoded Value, 
-        by default "_".
-    drop_self_col: bool, optional
-        If True, the encoded column will be deleted. 
-        If False, the encoded column will not be deleted, 
-        by default True.
-    drop_redundant_col_val: str, optional
-        If is not None, supply value that will corresnponde to encode column and 
-        the encoded column will be dropped after generate encoded columns, 
-        by default None.
-        
-    Returns
-    -------
-    DataFrame
-        The DataFrame containing encoded columns.
-    """
-    if prefix is None:
-        prefix = column    
-    finals_ohe_cols = [
-        f'{prefix}{prefix_sep}{x}'
-        for x in encode_values
-    ]
-    df = dataframe.copy()
-    dummies = pd.get_dummies(df[column], prefix=prefix, prefix_sep= prefix_sep)
-    drop_cols = list_ops(dummies.columns, finals_ohe_cols)
-    df = pd.concat([df, dummies], axis=1)
-    if drop_self_col:
-        drop_cols = drop_cols + [column]
-    df = df.drop(drop_cols, axis=1)
-    # insert feature that not has on received dataframe
-    for col in finals_ohe_cols:
-        if col not in df.columns:
-            df[col] = 0
-    if drop_redundant_col_val is not None:
-        drop_encoded_col_name = f'{prefix}{prefix_sep}{drop_redundant_col_val}'
-        if drop_encoded_col_name in df.columns:
-            df = df.drop(drop_encoded_col_name, axis=1)
-    return df
-
-
 class OneHotEncoder:
     def __init__(
         self, 
@@ -528,6 +463,14 @@ class Features:
                 final_features.append(feature)
         self._features = Features(final_features)
         return self._features
+    
+    @property
+    def features(self) -> List[Feature]:
+        return [feature for feature in self._features]
+    
+    @property
+    def features_name(self) -> List[str]:
+        return [feature.name for feature in self._features]
     
     @property
     def info(self) -> List[Dict]:

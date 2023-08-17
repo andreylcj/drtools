@@ -7,7 +7,7 @@ which will be mostly used in EDA.
 
 from drtools.utils import list_ops, to_title
 from drtools.file_manager import create_directories_of_path
-from drtools.data_science.data_handle import (
+from drtools.data_science.utils import (
     prepare_bins, 
     binning_numerical_variable
 )
@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 import math
 from sklearn.inspection import permutation_importance as sklearn_permutation_importance
-# import shap
 
 
 COLORS = [
@@ -925,30 +924,3 @@ def permutation_importance(
         savefig(savefig_path)
         
     plt.show()
-    
-
-# def shap_importance(
-#     model: Any,
-#     X: DataFrame,
-# ) -> None:
-#     """Plot most important features using Shap Importance
-
-#     Parameters
-#     ----------
-#     model : Any
-#         Model instance
-#     X : DataFrame
-#         X data as DataFrame
-#     """
-#     # Explain model predictions using shap library:
-#     explainer = shap.TreeExplainer(model)
-#     shap_values = explainer.shap_values(X)
-    
-#     # Plot summary_plot
-#     shap.summary_plot(shap_values, X, plot_type='bar')
-    
-    
-    
-    
-    
-    

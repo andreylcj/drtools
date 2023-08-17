@@ -6,10 +6,11 @@ with Python.
 """
 
 
+import os
 from typing import List, Tuple, Union, Any, Optional
 import psycopg2
 import gzip
-from drtools.file_manager import path_exist, create_directories_of_path
+from drtools.file_manager import create_directories_of_path
 from drtools.logging import Logger, FormatterOptions
 from drtools.database.connection.resources import (
     Cursor, 
@@ -86,7 +87,7 @@ class PostgreCursor(Cursor):
         save_path: str
     ) -> None:        
         outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
-        if path_exist(save_path):
+        if os.path.exists(save_path):
             raise Exception(f'Path {save_path} already exists.')
         create_directories_of_path(save_path)
         if save_path.endswith('.gz'):
