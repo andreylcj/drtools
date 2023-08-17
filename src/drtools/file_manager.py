@@ -5,32 +5,13 @@ of system.
 """
 
 import os
-from typing import List
+from typing import List, Optional
 from drtools.utils import (
     get_os_name,
     join_path
 )
 import json
 import gzip
-
-
-def path_exist(
-    path: str
-) -> bool: 
-    """Verify if path exists.
-
-    Parameters
-    ----------
-    path : str
-        Path to be verified
-
-    Returns
-    -------
-    bool
-        If True, path exists, if False, path does
-        not exists.
-    """
-    return os.path.exists(path)
 
 
 def split_path(
@@ -74,9 +55,9 @@ def move_file(
         If destination path already exists
     """
     
-    if not path_exist(current_path):
+    if not os.path.exists(current_path):
         raise Exception('Current path does not exists.')
-    if path_exist(destination_path):
+    if os.path.exists(destination_path):
         raise Exception('Destination path already exists.')   
     
     create_directories_of_path(destination_path)
@@ -85,10 +66,10 @@ def move_file(
 
 def get_files_path(
     parent_path: str, 
-    content_arr: List[str]=[],
-    ignore_files: List[str]=[],
-    ignore_folders: List[str]=[],
-    ignore_if_contain_some_of_the_words: List[str]=[]
+    content_arr: Optional[List[str]]=None,
+    ignore_files: Optional[List[str]]=None,
+    ignore_folders: Optional[List[str]]=None,
+    ignore_if_contain_some_of_the_words: Optional[List[str]]=None,
 ) -> List:
     """Return array containing all abs path of files inside directory.
 
@@ -111,6 +92,19 @@ def get_files_path(
     List
         List of files path inside parent path directory.
     """
+    
+    if content_arr is None:
+        content_arr = []
+
+    if ignore_files is None:
+        ignore_files = []
+
+    if ignore_folders is None:
+        ignore_folders = []
+
+    if ignore_if_contain_some_of_the_words is None:
+        ignore_if_contain_some_of_the_words = []    
+    
     files_path_arr = []
     ignore_cuz_content_name_have_some_of_the_words = False
     for content_name in content_arr:
@@ -149,9 +143,9 @@ def get_files_path(
 
 def list_path_of_all_files_inside_directory(
     root_directory_path: str,
-    ignore_files: List[str]=[],
-    ignore_folders: List[str]=[],
-    ignore_if_contain_some_of_the_words: List[str]=[]
+    ignore_files: Optional[List[str]]=None,
+    ignore_folders: Optional[List[str]]=None,
+    ignore_if_contain_some_of_the_words: Optional[List[str]]=None,
 ) -> List:
     """Return array containing all abs path inside some directory.
 
@@ -172,6 +166,16 @@ def list_path_of_all_files_inside_directory(
     List
         List of files path inside parent path directory.
     """
+    if ignore_files is None:
+        ignore_files = []
+        
+    if ignore_folders is None:
+        ignore_folders = []
+        
+    if ignore_if_contain_some_of_the_words is None:
+        ignore_if_contain_some_of_the_words = []
+        
+    
     try:
       dataDirectoryContent = os.listdir(root_directory_path)
     except:
@@ -186,29 +190,6 @@ def list_path_of_all_files_inside_directory(
             ignore_if_contain_some_of_the_words=ignore_if_contain_some_of_the_words
         )
     return itemsPath
-
-
-def search_by_name_on_directory(
-    name: str, 
-    directory: str,
-) -> List[str]:
-    """Search files that contain substring on name inside directory
-
-    Parameters
-    ----------
-    name : str
-        Name of file that will be searched
-    dir : str
-        Directory to search for file
-
-    Returns
-    -------
-    List[str]
-        All file names that was found
-    """
-    content = os.listdir(directory)
-    result = [filename for filename in content if name in filename]
-    return result
     
     
 def create_directories_of_path(
@@ -264,7 +245,8 @@ def save_json(
     data: any, 
     path: str,
     indent: int=4,
-    sort_keys: bool=False
+    sort_keys: bool=False,
+    overwrite: bool=False
 ) -> None:
     """Save JSON file.
 
@@ -290,7 +272,8 @@ def save_json(
         If path already exists.
     """
     
-    if os.path.exists(path):
+    if os.path.exists(path) \
+    and not overwrite:
         raise Exception('Path already exists.')
     
     create_directories_of_path(path)

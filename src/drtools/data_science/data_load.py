@@ -6,10 +6,10 @@ For instance: .csv, .txt, .parquet, .gz and so on.
 
 
 from drtools.file_manager import (
-    create_directories_of_path, search_by_name_on_directory,
+    create_directories_of_path, 
     list_path_of_all_files_inside_directory
 )
-from typing import Union
+from typing import Union, List, Callable, Optional
 from types import FunctionType
 from pandas.core.frame import DataFrame
 import pandas as pd
@@ -32,11 +32,211 @@ class FileType(Enum):
     @property
     def extension(self):
         return self.value[1]
+    
+    
+class FileTypeHandler:
+    
+    def is_csv(self, filepath: str) -> bool:
+        return filepath.endswith('.csv') \
+            or filepath.endswith('.csv.gz')
+    
+    def is_parquet(self, filepath: str) -> bool:
+        return filepath.endswith('.parquet')
+    
+    def is_json(self, filepath: str) -> bool:
+        return filepath.endswith('.json') \
+            or filepath.endswith('.json.gz')
+    
+    
+class BaseDataframeReader(FileTypeHandler):
+    def __init__(
+        self,
+        LOGGER: Logger=None
+    ):
+        self.LOGGER = LOGGER
+        
+    def read(self, filepath: str, **kwargs) -> Optional[DataFrame]:
+        raise NotImplementedError
+
+
+class CSVDataframeReader(BaseDataframeReader):
+    
+    def read(self, filepath: str, **kwargs) -> Optional[DataFrame]:
+        return pd.read_csv(filepath, **kwargs)
+
+
+class ParquetDataframeReader(BaseDataframeReader):
+    
+    def read(self, filepath: str, **kwargs) -> Optional[DataFrame]:
+        chunksize: int = kwargs.get('chunksize', None)
+        nrows: int = kwargs.get('nrows', None)
+        usecols: List[str] = kwargs.get('usecols', None)
+        
+        if chunksize is not None:
+            return pq.ParquetFile(filepath)
+        
+        if nrows is not None:
+            resp = pq.ParquetFile(filepath)
+            df = None
+            
+            for chunk in resp.iter_batches(batch_size=nrows):
+                df = chunk.to_pandas()
+                break
+            
+            if usecols is not None:
+                df = df.loc[:, usecols]
+                
+            return df
+        
+        else:
+            return pd.read_parquet(filepath, columns=usecols)
+
+
+class JSONDataframeReader(BaseDataframeReader):
+    
+    def read(self, filepath: str, **kwargs) -> Optional[DataFrame]:
+        df = pd.read_json(filepath)        
+        usecols = kwargs.get('usecols', None)
+        if usecols is not None:
+            df = df.loc[:, usecols]
+        return df
+    
+    
+class SmartDataframeReader(BaseDataframeReader):
+    
+    def read(self, filepath: str, **kwargs) -> Optional[DataFrame]:
+        
+        if self.is_csv(filepath):
+            return CSVDataframeReader(
+                LOGGER=self.LOGGER
+            ).read(
+                filepath=filepath,
+                **kwargs
+            )
+        
+        elif self.is_parquet(filepath):
+            return ParquetDataframeReader(
+                LOGGER=self.LOGGER
+            ).read(
+                filepath=filepath,
+                **kwargs
+            )
+        
+        elif self.is_json(filepath):
+            return JSONDataframeReader(
+                LOGGER=self.LOGGER
+            ).read(
+                filepath=filepath,
+                **kwargs
+            )
+        
+        else:
+            return None
+    
+    
+class BaseDirectoryDataframeReader(FileTypeHandler):
+    def __init__(
+        self,
+        LOGGER: Logger=None
+    ):
+        self.LOGGER = LOGGER
+        
+    def read(
+        self, 
+        dirpath: str, 
+        process_chunk: Callable=None,
+        **kwargs
+    ) -> Optional[DataFrame]:
+        raise NotImplementedError
+        
+        
+class SmartDirectoryDataframeReader(BaseDirectoryDataframeReader):
+        
+    def read(
+        self, 
+        dirpath: str, 
+        process_chunk: Callable=None,
+        **kwargs
+    ) -> Optional[DataFrame]:
+        
+        filepaths: List[str] = list_path_of_all_files_inside_directory(
+            dirpath
+        )
+        df = None
+        
+        chunksize: int = kwargs.get('chunksize', None)
+        nrows: int = kwargs.get('nrows', None)
+        usecols: List[str] = kwargs.get('usecols', None)
+        
+        for filepath in filepaths:
+            curr_df = SmartDataframeReader(
+                    LOGGER=self.LOGGER
+                ).read(
+                    filepath=filepath, 
+                    **kwargs
+                )
+            
+            if curr_df is None:
+                continue
+            
+            temp_data = None
+            
+            if nrows is not None \
+            and chunksize is not None:
+                raise Exception('Parameter "chunksize" and "nrows" can not be provided at same time.')
+            
+            if chunksize is not None:
+                
+                iter_data = None
+                if self.is_parquet(filepath):
+                    iter_data = curr_df.iter_batches(batch_size=chunksize)
+                
+                else:
+                    iter_data = curr_df
+                
+                for chunk in iter_data:
+                    
+                    if temp_data is None:
+                        temp_data = process_chunk(chunk)
+                        
+                    else:
+                        temp_data = pd.concat([
+                                temp_data,
+                                process_chunk(chunk)
+                            ], 
+                            ignore_index=True
+                        )
+                
+                if usecols is not None:
+                    temp_data = temp_data.loc[:, usecols]
+                            
+            elif nrows is not None:
+                df_shape = 0 if df is None else df.shape[0]
+                temp_data = curr_df.iloc[:nrows - df_shape]
+                
+            else:
+                temp_data = curr_df                
+                    
+            if df is None: 
+                df = temp_data.copy()
+                    
+            else: 
+                df = pd.concat([
+                        df, 
+                        temp_data
+                    ], 
+                    ignore_index=True
+                )
+                
+            if nrows is not None and df.shape[0] >= nrows:
+                break
+        
+        return df
 
 
 def concat_dir(
     dir: str, 
-    out_path: str, 
+    outpath: str, 
     verbose: int=100, 
     file_type: FileType=FileType.CSV,
     LOGGER: Logger=Logger(
@@ -55,7 +255,7 @@ def concat_dir(
     ----------
     dir : str
         The directory path containing files.
-    out_path : str
+    outpath : str
         Path so write output file.
     verbose : int, optional
         Verbose num, by default 100
@@ -79,7 +279,7 @@ def concat_dir(
     total_paths_len = len(all_paths)
     LOGGER.info('Start concatenating...')
     if file_type is FileType.CSV:
-        with open(out_path, 'w') as f:
+        with open(outpath, 'w') as f:
             for path in all_paths:
                 count += 1            
                 if count % verbose == 0:
@@ -140,167 +340,3 @@ def save_df(
         
     else:
         raise Exception(f'Extension on {os.path.basename(path)} not allow.')
-
-
-def read_as_df(
-    file_reference: str, 
-    directory: str=None,
-    **read_args,
-) -> Union[DataFrame, None]:
-    """Get DataFrame from name of file inside directory
-
-    Parameters
-    ----------
-    file_reference : str
-        Name of file that will be searched or abs path of file.
-    directory : str, optional
-        Directory to search for file, by default None.
-    read_args : dict, optional
-        Arguments that will be passed to read 
-        file function, by default {}.
-
-    Returns
-    -------
-    Union[DataFrame, None]
-        If file is found and type is csv or parquet, returns the DataFrame, 
-        else return **None**
-    """
-    file_path = file_reference
-    if directory is not None:
-        file_names = search_by_name_on_directory(
-            file_reference, 
-            directory
-        )
-        if len(file_names) == 0:
-            return None
-        file_path = os.path.join(directory, file_names[0])
-        
-    if '.csv' in file_path:
-        return pd.read_csv(
-            file_path,
-            **read_args
-        )
-        
-    elif '.parquet' in file_path:
-        chunksize = read_args.get('chunksize', None)
-        nrows = read_args.get('nrows', None)
-        if chunksize is not None:
-            return pq.ParquetFile(file_path)
-        elif nrows is not None:
-            resp = pq.ParquetFile(file_path)
-            df = None
-            for chunk in resp.iter_batches(batch_size=nrows):
-                df = chunk.to_pandas()
-                break
-            usecols = read_args.get('usecols', None)
-            if usecols is not None:
-                df = df.loc[:, usecols]
-            return df
-        else:
-            usecols = read_args.get('usecols', None)
-            return pd.read_parquet(
-                file_path,
-                columns=usecols
-            )
-    
-    elif '.json' in file_path:
-        df = pd.read_json(file_path)        
-        usecols = read_args.get('usecols', None)
-        if usecols is not None:
-            df = df.loc[:, usecols]
-        return df
-    
-    
-    elif '.joblib' in file_path:
-        return joblib.load(file_path)
-    
-    else:
-        return None
-    
-    
-def read_dir_as_df(
-    directory_path: str,
-    process_chunk: FunctionType=None,
-    **read_args,
-) -> Union[DataFrame, None]: 
-    """Load data of entire directory and load as DataFrame.
-
-    Parameters
-    ----------
-    directory_path : str
-        Path of directory.
-    process_chunk : FunctionType
-        If chunksize if passed as parameter, process each 
-        chunck applying this function. This function must return 
-        a DataFrame, by default None.
-
-    Returns
-    -------
-    DataFrame
-        The data loaded as DataFrame.
-    """
-
-    items_path = list_path_of_all_files_inside_directory(
-        directory_path
-    )
-
-    df = None
-    
-    for item in items_path:
-        resp = read_as_df(item, **read_args)
-        if resp is None:
-            continue
-        
-        temp_data = None
-        chunksize = read_args.get('chunksize', None)
-        nrows = read_args.get('nrows', None)
-        
-        if nrows is not None \
-        and chunksize is not None:
-            raise Exception('Parameter "chunksize" and "nrows" can not be provided at same time.')
-        
-        if chunksize is not None:
-            if '.parquet' in item:
-                for chunk in resp.iter_batches(batch_size=chunksize):
-                    chunk = chunk.to_pandas()
-                    if temp_data is None:
-                        temp_data = process_chunk(chunk)
-                    else:
-                        temp_data = pd.concat([
-                            temp_data,
-                            process_chunk(chunk)
-                        ], ignore_index=True)
-            else:
-                for chunk in resp:
-                    if temp_data is None:
-                        temp_data = process_chunk(chunk)
-                    else:
-                        temp_data = pd.concat([
-                            temp_data,
-                            process_chunk(chunk)
-                        ], ignore_index=True)
-                        
-            usecols = read_args.get('usecols', None)
-            if usecols is not None:
-                temp_data = temp_data.loc[:, usecols]
-                        
-        elif nrows is not None:
-            df_shape = 0 if df is None else df.shape[0]
-            temp_data = resp[resp.index < nrows - df_shape]
-            
-        else:
-            temp_data = resp
-            
-                
-        if df is None: 
-            if type(temp_data) == dict:
-                df = temp_data
-            else:
-                df = temp_data.copy()
-        else: 
-            df = pd.concat([df, temp_data], ignore_index=True)
-            
-        if nrows is not None and df.shape[0] >= nrows:
-            break
-            
-    return df
