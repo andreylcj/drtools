@@ -469,6 +469,10 @@ class Features:
         return [feature for feature in self._features]
     
     @property
+    def features_name(self) -> List[str]:
+        return [feature.name for feature in self._features]
+    
+    @property
     def info(self) -> List[Dict]:
         return [feature.info for feature in self._features]
     
