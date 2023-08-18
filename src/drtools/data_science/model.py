@@ -255,6 +255,7 @@ class ModelDefinition:
             ]),
             training_information=kwargs.get('training_information', None),
             metrics=kwargs.get('metrics', None),
+            extra_information=kwargs.get('extra_information', None),
         )
 
 
@@ -481,13 +482,13 @@ class ModelHandler:
         model_definition: ModelDefinition,
         LOGGER: Logger=None, 
     ) -> BaseModel:
-        if model_definition['algorithm'] == AlgorithmType.LIGHTGBM.name:
+        if model_definition.algorithm == AlgorithmType.LIGHTGBM.name:
             return LightGbmModel(
                 model_definition=model_definition,
                 LOGGER=LOGGER, 
             )
         
-        elif model_definition['algorithm'] == AlgorithmType.MINI_BATCH_KMEANS.name:
+        elif model_definition.algorithm == AlgorithmType.MINI_BATCH_KMEANS.name:
             return MiniBatchKmeansModel(
                 model_definition=model_definition,
                 LOGGER=LOGGER, 
