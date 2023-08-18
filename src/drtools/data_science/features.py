@@ -81,6 +81,22 @@ class OneHotEncoder:
             if drop_encoded_col_name in df.columns:
                 df = df.drop(drop_encoded_col_name, axis=1)
         return df
+    
+    
+class LabelEncoder:
+    def __init__(
+        self, 
+        column: str, 
+        map_values: Dict[str, int],
+    ):
+        self.column = column
+        self.map_values = map_values
+
+    def encode(self, dataframe: DataFrame) -> Series:
+        str_map_values = {str(k): str(v) for k, v in self.map_values.items()}
+        series = dataframe[self.column].replace(str_map_values)
+        series = series.astype(int)
+        return series
 
 
 class DataFrameMissingColumns(Exception):
