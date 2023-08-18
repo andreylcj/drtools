@@ -628,8 +628,8 @@ class BaseFeatureConstructor:
         if len(not_expected_cols) > 0:
             raise Exception(f"Not expected cols: {not_expected_cols}")
         
-        if receveid_shape[0] != response_dataframe.shape[0]:
-            raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
+        # if receveid_shape[0] != response_dataframe.shape[0]:
+        #     raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
         
         self.verbose(False)
         
