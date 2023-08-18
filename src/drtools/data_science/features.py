@@ -1574,14 +1574,14 @@ class BaseFeaturesValidator:
                 for col in received_df.columns
             },
             axis=1
-            )
+        )
         
         expected_df = expected_df.rename({
                 col: f'expected.{col}'
                 for col in expected_df.columns
             },
             axis=1
-            )
+        )
         
         right_on = [
             f'received.{merge_feature_name}'
