@@ -1659,10 +1659,12 @@ class BaseFeaturesValidator:
             if (error_data['valid'] == False).sum() > 0:
                 
                 if self.error_log_level == 1:
-                    self.LOGGER.error(f'Validation Error:\n{error_data[~error_data["valid"]]}')
+                    error_txt = error_data[~error_data["valid"]].to_string()
+                    self.LOGGER.error(f'Validation Error:\n{error_txt}')
                     
                 elif self.error_log_level == 2:
-                    self.LOGGER.error(f'Validation Error:\n{error_data}')
+                    error_txt = error_data.to_string()
+                    self.LOGGER.error(f'Validation Error:\n{error_txt}')
                 
                 else:
                     raise Exception(f"Provided error_log_level is invalid: {self.error_log_level}")
@@ -1689,16 +1691,16 @@ class BaseFeaturesValidator:
         )
         self.LOGGER.debug("Parsing payload data to dataframe... Done!")
         
-        self.LOGGER.debug("Constructing features from payload...")
         if self.constructor is not None:
+            self.LOGGER.debug("Constructing features from payload...")
             received_df = self.constructor.construct(
                 dataframe=payload_df,
                 LOGGER=self.LOGGER
             )
+            self.LOGGER.debug("Constructing features from payload... Done!")
         else:
             received_df = payload_df
         received_df = received_df[self._full_features_name]
-        self.LOGGER.debug("Constructing features from payload... Done!")
         
         self.LOGGER.debug("Validating...")
         self._validate(
