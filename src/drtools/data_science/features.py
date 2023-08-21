@@ -87,14 +87,14 @@ class LabelEncoder:
     def __init__(
         self, 
         column: str, 
-        map_values: Dict[str, int],
+        values_mapper: Dict[str, int],
     ):
         self.column = column
-        self.map_values = map_values
+        self.values_mapper = values_mapper
 
     def encode(self, dataframe: DataFrame) -> Series:
-        str_map_values = {str(k): str(v) for k, v in self.map_values.items()}
-        series = dataframe[self.column].replace(str_map_values)
+        str_values_mapper = {str(k): str(v) for k, v in self.values_mapper.items()}
+        series = dataframe[self.column].replace(str_values_mapper)
         series = series.astype(int)
         return series
 
