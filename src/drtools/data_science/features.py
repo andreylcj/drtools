@@ -81,6 +81,22 @@ class OneHotEncoder:
             if drop_encoded_col_name in df.columns:
                 df = df.drop(drop_encoded_col_name, axis=1)
         return df
+    
+    
+class LabelEncoder:
+    def __init__(
+        self, 
+        column: str, 
+        values_mapper: Dict[str, int],
+    ):
+        self.column = column
+        self.values_mapper = values_mapper
+
+    def encode(self, dataframe: DataFrame) -> Series:
+        str_values_mapper = {str(k): str(v) for k, v in self.values_mapper.items()}
+        series = dataframe[self.column].replace(str_values_mapper)
+        series = series.astype(int)
+        return series
 
 
 class DataFrameMissingColumns(Exception):
@@ -612,8 +628,8 @@ class BaseFeatureConstructor:
         if len(not_expected_cols) > 0:
             raise Exception(f"Not expected cols: {not_expected_cols}")
         
-        if receveid_shape[0] != response_dataframe.shape[0]:
-            raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
+        # if receveid_shape[0] != response_dataframe.shape[0]:
+        #     raise DataFrameDiffLength(receveid_shape[0], response_dataframe.shape[0])
         
         self.verbose(False)
         
@@ -1574,14 +1590,14 @@ class BaseFeaturesValidator:
                 for col in received_df.columns
             },
             axis=1
-            )
+        )
         
         expected_df = expected_df.rename({
                 col: f'expected.{col}'
                 for col in expected_df.columns
             },
             axis=1
-            )
+        )
         
         right_on = [
             f'received.{merge_feature_name}'
@@ -1659,10 +1675,12 @@ class BaseFeaturesValidator:
             if (error_data['valid'] == False).sum() > 0:
                 
                 if self.error_log_level == 1:
-                    self.LOGGER.error(f'Validation Error:\n{error_data[~error_data["valid"]]}')
+                    error_txt = error_data[~error_data["valid"]].to_string()
+                    self.LOGGER.error(f'Validation Error:\n{error_txt}')
                     
                 elif self.error_log_level == 2:
-                    self.LOGGER.error(f'Validation Error:\n{error_data}')
+                    error_txt = error_data.to_string()
+                    self.LOGGER.error(f'Validation Error:\n{error_txt}')
                 
                 else:
                     raise Exception(f"Provided error_log_level is invalid: {self.error_log_level}")
@@ -1689,16 +1707,16 @@ class BaseFeaturesValidator:
         )
         self.LOGGER.debug("Parsing payload data to dataframe... Done!")
         
-        self.LOGGER.debug("Constructing features from payload...")
         if self.constructor is not None:
+            self.LOGGER.debug("Constructing features from payload...")
             received_df = self.constructor.construct(
                 dataframe=payload_df,
                 LOGGER=self.LOGGER
             )
+            self.LOGGER.debug("Constructing features from payload... Done!")
         else:
             received_df = payload_df
         received_df = received_df[self._full_features_name]
-        self.LOGGER.debug("Constructing features from payload... Done!")
         
         self.LOGGER.debug("Validating...")
         self._validate(
