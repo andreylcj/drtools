@@ -18,11 +18,14 @@ from drtools.database.connection.resources import (
     ConnectionConfig
 )
 from datetime import datetime
+from pandas import DataFrame
 
 
 FetchAll = 'fetch-all'
 FetchOne = 'fetch-one'
 FetchMany = 'fetch-many'
+ColumnNames = List[str]
+RequestedData = List[Tuple]
 
 
 class PostgreCursor(Cursor):
@@ -177,7 +180,11 @@ class PostgreConnection(Connection):
         fetch_mode: Union[FetchAll, FetchOne, FetchMany]=FetchAll,
         size: int=10,
         save_on: str=None,
-    ) -> Tuple[List[str], List[Tuple]]:
+        return_as_dataframe: bool=False,
+    ) -> Union[
+        Tuple[ColumnNames, RequestedData],
+        DataFrame
+    ]:
         self.executing = True
         self.exec_started_at = datetime.now()
         cursor = None
@@ -192,7 +199,10 @@ class PostgreConnection(Connection):
                 cursor.execute(query, query_values)
                 response = cursor.fetch(size)
                 colnames = [desc[0] for desc in cursor.description]
-                return colnames, response
+                if return_as_dataframe:
+                    return DataFrame(response, columns=colnames)
+                else:
+                    return colnames, response
             else:
                 cursor.copy(query, save_on)
         except (Exception, psycopg2.DatabaseError) as error:
