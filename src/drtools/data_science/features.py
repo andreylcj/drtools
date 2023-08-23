@@ -1545,6 +1545,82 @@ class BaseTyperFeatureConstructor(BaseFeatureConstructor):
         )
         
         return response_series
+    
+    
+class BaseErrorTolerance:
+    def __init__(
+        self,
+        feature: Feature,
+        value: Any,
+    ):
+        self.feature = feature
+        self.value = value
+
+
+class NumericErrorTolerance(BaseErrorTolerance):
+    def __init__(
+        self,
+        feature: Feature,
+        value: float,
+    ):
+        super(NumericErrorTolerance, self).__init__(
+            feature,
+            value
+        )
+
+
+class DatetimeErrorTolerance(BaseErrorTolerance):
+    def __init__(
+        self,
+        feature: Feature,
+        value: timedelta,
+    ):
+        super(DatetimeErrorTolerance, self).__init__(
+            feature,
+            value
+        )
+
+
+class BaseCustomErrorTolerance:
+    def __init__(
+        self,
+        error_tolerances: List[BaseErrorTolerance]=None,
+        default_tolerance: float=None,
+    ):
+        if error_tolerances is None:
+            error_tolerances = []
+        self.error_tolerances = error_tolerances
+        self.default_tolerance = default_tolerance
+        
+    def get_tolerance_by_feature(self, feature: Feature) -> Any:
+        for error_tolerance in self.error_tolerances:
+            if error_tolerance.feature == feature:
+                return error_tolerance.value
+        return self.default_tolerance
+
+
+class NumericCustomErrorTolerance(BaseCustomErrorTolerance):
+    def __init__(
+        self,
+        error_tolerances: List[NumericErrorTolerance]=None,
+        default_tolerance: float=1e-3,
+    ):
+        super(NumericCustomErrorTolerance, self).__init__(
+            error_tolerances,
+            default_tolerance
+        )
+
+
+class DatetimeCustomErrorTolerance(BaseCustomErrorTolerance):
+    def __init__(
+        self,
+        error_tolerances: List[DatetimeErrorTolerance]=None,
+        default_tolerance: timedelta=timedelta(seconds=1),
+    ):
+        super(DatetimeCustomErrorTolerance, self).__init__(
+            error_tolerances,
+            default_tolerance
+        )
 
 
 class BaseFeaturesValidator:
@@ -1555,8 +1631,8 @@ class BaseFeaturesValidator:
         merge_on: Features,
         constructor: Optional[BaseFeatureConstructor]=None,
         error_log_level: int=1, # 1 or 2
-        numeric_error_tolerance: float=1e-3,
-        datetime_error_tolerance: timedelta=timedelta(seconds=1),
+        numeric_error_tolerance: NumericCustomErrorTolerance=NumericCustomErrorTolerance(),
+        datetime_error_tolerance: DatetimeCustomErrorTolerance=DatetimeCustomErrorTolerance(),
         LOGGER: Logger=Logger(
                 name="BaseFeaturesValidator",
                 formatter_options=FormatterOptions(
@@ -1650,7 +1726,9 @@ class BaseFeaturesValidator:
             if feature.type is FeatureType.DATETIME \
             or feature.type is FeatureType.DATETIMEUTC:
                 error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
-                error_data['tolerance'] = self.datetime_error_tolerance
+                error_data['tolerance'] = self.datetime_error_tolerance.get_tolerance_by_feature(
+                    feature=feature
+                )
                 error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
                 
             elif feature.type is FeatureType.INT8 \
@@ -1664,7 +1742,9 @@ class BaseFeaturesValidator:
             or feature.type is FeatureType.FLOAT32 \
             or feature.type is FeatureType.FLOAT64:
                 error_data['error'] = error_data[received_feature_name] - error_data[expected_feature_name]
-                error_data['tolerance'] = self.numeric_error_tolerance
+                error_data['tolerance'] = self.numeric_error_tolerance.get_tolerance_by_feature(
+                    feature=feature
+                )
                 error_data['valid'] = error_data['error'].abs() <= error_data['tolerance']
                 
             else:
