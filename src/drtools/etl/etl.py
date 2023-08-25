@@ -10,7 +10,7 @@ from drtools.thread_pool_executor import (
     ThreadConfig, 
     WorkerResponse
 )
-from scibet.resources.request import (
+from drtools.etl.request import (
     ThreadRequester,
     HTTPMethod,
     URLParams,
