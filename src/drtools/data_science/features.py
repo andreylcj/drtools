@@ -780,7 +780,7 @@ class StringTyper(BaseFeatureTyper):
         blank_features: Features = Features([
             feature
             for feature in self.features
-            if not feature.blank
+            if not getattr(feature, 'blank', True)
         ])
         
         if len(blank_features) > 0:
@@ -794,7 +794,7 @@ class StringTyper(BaseFeatureTyper):
     def styper(self, series: Series, **kwargs) -> Series:
         series_response: Series = series.astype(FeatureType.STR.type(self.numpy))
         feature: StringFeature = self.features[0]
-        blank: bool = feature.blank
+        blank: bool = getattr(feature, 'blank', True)
         if not blank:
             series_response = series_response \
                 .replace({"": None}) \
