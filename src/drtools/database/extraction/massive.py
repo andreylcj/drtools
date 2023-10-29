@@ -12,6 +12,8 @@ from drtools.database.connection.resources import (
 )
 from drtools.database.connection.postgresql import PostgreConnection
 from psycopg2.pool import AbstractConnectionPool
+from drtools.data_science.data_load import concat_dir
+import shutil
 
 
 RawQuery = str
@@ -229,7 +231,11 @@ class PostgreMassiveExtraction:
         )
         self.LOGGER.info(f'Pool connecting... Done!')
     
-    def start(self):
+    def run(
+        self,
+        concat_dir_path: str=None, # Directory to concat
+        clean_up: bool=False,
+    ):
         self.setup_thread()
         self.setup_pool()
         
@@ -243,4 +249,14 @@ class PostgreMassiveExtraction:
         self.LOGGER.info('Terminating connections...')
         self.terminate_connections()
         self.LOGGER.info('Terminating connections... Done!')
+        
+        if concat_dir:
+            self.LOGGER.info('Concatening directory...')
+            concat_dir(concat_dir_path, f'{concat_dir_path}-concatened.csv')
+            self.LOGGER.info('Concatening directory... Done!')
+            
+            if clean_up:
+                self.LOGGER.info('Cleaning up...')
+                shutil.rmtree(concat_dir_path)
+                self.LOGGER.info('Cleaning up... Done!')
         
