@@ -2,7 +2,7 @@
 
 from typing import Any, Callable
 from drtools.logging import Logger, FormatterOptions
-from drtools.airflow.types import Date
+from drtools.etl.types import Date
 from datetime import datetime, timedelta
 
 
