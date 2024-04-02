@@ -52,8 +52,18 @@ class ChromeWebDriverHandler(WebDriverHandler):
             options = ChromeOptions()
 
         # add options arguments
+        has_window_size = False
+        has_start_maximized = False
         for arg in options_arguments:
+            if 'window-size' in arg:
+                has_window_size = True
+            if 'start-maximized' in arg:
+                has_start_maximized = True
             options.add_argument(arg)
+        if not has_window_size:
+            options.add_argument('--window-size=1920x1080')
+        if not has_start_maximized:
+            options.add_argument('--start-maximized')
 
         # handle proxy_server
         # if proxy_server:
@@ -83,8 +93,6 @@ class ChromeWebDriverHandler(WebDriverHandler):
         if remove_ui:
             remove_ui_args = [
                 '--headless',
-                'start-maximized',
-                'window-size=1920x1080',
                 '--no-sandbox',
                 '--disable-gpu',
                 '--mute-audio',
