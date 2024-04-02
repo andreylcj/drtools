@@ -1,7 +1,6 @@
 
 
 from .exceptions import BotDetectionError
-from .driver_handler.handler import WebDriverHandler
 from typing import List
 
 
@@ -17,7 +16,7 @@ class BotDetection:
     @classmethod
     def detect(
         cls,
-        web_drive_handler: WebDriverHandler,
+        web_drive_handler,
         raise_exception: bool=True
     ) -> None:
         pattern = cls.build_pattern()

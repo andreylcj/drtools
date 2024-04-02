@@ -114,6 +114,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         wait_time: int=None,
         wait_pre_action: Callable=None,
         wait_post_action: Callable=None,
+        verbose_traceback: bool=False,
         max_workers: int=1,
         proxies: List[str]=[],
     ) -> None:
@@ -123,6 +124,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self.wait_time = wait_time
         self.wait_pre_action = wait_pre_action
         self.wait_post_action = wait_post_action
+        self.verbose_traceback = verbose_traceback
         self.max_workers = max_workers
         self.proxies = proxies
         self._web_driver_handlers = []
@@ -136,15 +138,21 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self.web_driver_start_args = args
         kwargs['LOGGER'] = self.LOGGER
         self.web_driver_start_kwargs = kwargs
-        
+    
+    def add_web_driver_handler(
+        self,
+        web_driver_handler: WebDriverHandler,
+    ) -> None:
+        self._web_driver_handlers.append(web_driver_handler)
+        self._success_executions_by_handler[web_driver_handler] = 0
+        self._errors_executions_by_handler[web_driver_handler] = 0
+    
     def start(self, *args, **kwargs):
         self.LOGGER.info(f"Initializing drivers...")
         for i in range(self.max_workers):
             web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(LOGGER=self.LOGGER)
             web_driver_handler.start(*args, **kwargs)
-            self._web_driver_handlers.append(web_driver_handler)
-            self._success_executions_by_handler[web_driver_handler] = 0
-            self._errors_executions_by_handler[web_driver_handler] = 0
+            self.add_web_driver_handler(web_driver_handler)
         self.LOGGER.info("Initializing drivers... Done!")
     
     def quit(self):
