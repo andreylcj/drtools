@@ -21,7 +21,11 @@ class BotDetection:
     ) -> None:
         pattern = cls.build_pattern()
         try:
-            bot_el = web_drive_handler.find_element(pattern)
+            bot_el = web_drive_handler.wait_for_element_presence_located_by_xpath(
+                pattern, 
+                web_drive_handler.bot_detection_wait_for_presence_delay, 
+                False
+            )
             if bot_el:
                 raise BotDetectionError(cls.MESSAGE)
         except BotDetectionError as exc:
@@ -50,7 +54,7 @@ class HumanDetection(BotDetection):
     
     CONTENT: List[str] = [
         'Confirme que você é humano',
-        'Verificando se você é humano. Isso pode levar alguns segundos.',
+        'Verificando se você é humano.',
     ]
     MESSAGE: str = 'Not Human detection.'
 
@@ -59,5 +63,6 @@ class AccessDeniedDetection(BotDetection):
     
     CONTENT: List[str] = [
         'Access denied.',
+        'Access Denied.',
     ]
     MESSAGE: str = 'Access Denied.'

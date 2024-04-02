@@ -2,7 +2,7 @@
 
 from .driver_handler.handler import WebDriverHandler
 from .driver_handler.chrome import ChromeWebDriverHandler
-from typing import List, Any, Callable, Union
+from typing import List, Any, Callable, Union, Tuple
 from drtools.logging import Logger, FormatterOptions
 import uuid
 from datetime import datetime
@@ -22,11 +22,17 @@ from .types import (
     AutomationFromListResult,
     Worker,
 )
+from .bot_detection import BotDetection
+from copy import deepcopy
 
 
 class BaseAutomationProcess:
     
     WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler]=ChromeWebDriverHandler
+    BOT_DETECTION_METHODS: List[BotDetection] = []
+    BOT_DETECTION_MAX_RETRIES: int = 5
+    BOT_DETECTION_RETRY_WAIT_TIME: int = 10 # Seconds
+    BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY: int = 1.5 # Seconds
     
     def __init__(
         self, 
@@ -42,22 +48,53 @@ class BaseAutomationProcess:
                 formatter_options=FormatterOptions(include_datetime=True, include_logger_name=True, include_level_name=True),
                 default_start=False
             )
+        self.driver = driver
         self.LOGGER = LOGGER
         self._start = start
         self._quit = quit
-        if driver:
-            self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER)
         self._result = None
-        
-    def start(self, *args, **kwargs):
+        self.web_driver_handler = None
+        self.web_driver_start_kwargs = {}
+        self.start_web_driver_handler(self.driver, self.LOGGER)
+    
+    def set_driver(self, driver: WebDriver) -> None:
+        self.driver = driver
+        self.web_driver_handler.set_driver(driver)
+    
+    def set_logger(self, LOGGER: Logger) -> None:
+        self.LOGGER = LOGGER
+        self.web_driver_handler.set_logger(LOGGER)
+            
+    def start_web_driver_handler(self, driver: WebDriver=None, LOGGER: Logger=None, **kwargs) -> None:
+        kwargs.pop('driver', None)
+        kwargs.pop('LOGGER', None)
+        if 'bot_detection_methods' not in kwargs:
+            kwargs['bot_detection_methods'] = self.BOT_DETECTION_METHODS
+        if 'bot_detection_max_retries' not in kwargs:
+            kwargs['bot_detection_max_retries'] = self.BOT_DETECTION_MAX_RETRIES
+        if 'bot_detection_retry_wait_time' not in kwargs:
+            kwargs['bot_detection_retry_wait_time'] = self.BOT_DETECTION_RETRY_WAIT_TIME
+        if 'bot_detection_wait_for_presence_delay' not in kwargs:
+            kwargs['bot_detection_wait_for_presence_delay'] = self.BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY
+        self.web_driver_start_kwargs = deepcopy(kwargs)
+        self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER, **kwargs)
+    
+    @property
+    def web_driver_start_args(self) -> Tuple:
+        return (self.driver, self.LOGGER)
+    
+    def get_web_driver_handler_copy(self) -> WebDriverHandler:
+        return deepcopy(self.web_driver_handler)
+    
+    def start(self, *args, **kwargs) -> None:
         self.LOGGER.info(f"Initializing driver...")
-        web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS()
-        web_driver_handler.start(*args, **kwargs)
-        self.web_driver_handler = web_driver_handler
+        self.web_driver_handler.start(*args, **kwargs)
         self.LOGGER.info("Initializing driver... Done!")
     
     def quit(self):
+        self.LOGGER.info(f"Quiting driver...")
         self.web_driver_handler.quit()
+        self.LOGGER.info(f"Quiting driver... Done!")
     
     def __enter__(self):
         if self._start:
@@ -131,18 +168,8 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self._lock = Lock()
         self._success_executions_by_handler = {} # web_driver_handler -> execution_count
         self._errors_executions_by_handler = {} # web_driver_handler -> execution_count
-        self.web_driver_start_args = ()
-        self.web_driver_start_kwargs = {}
-        
-    def set_web_driver_start_args_kwargs(self, *args, **kwargs):
-        self.web_driver_start_args = args
-        kwargs['LOGGER'] = self.LOGGER
-        self.web_driver_start_kwargs = kwargs
     
-    def add_web_driver_handler(
-        self,
-        web_driver_handler: WebDriverHandler,
-    ) -> None:
+    def add_web_driver_handler(self, web_driver_handler: WebDriverHandler) -> None:
         self._web_driver_handlers.append(web_driver_handler)
         self._success_executions_by_handler[web_driver_handler] = 0
         self._errors_executions_by_handler[web_driver_handler] = 0
@@ -150,7 +177,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     def start(self, *args, **kwargs):
         self.LOGGER.info(f"Initializing drivers...")
         for i in range(self.max_workers):
-            web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(LOGGER=self.LOGGER)
+            web_driver_handler = self.get_web_driver_handler_copy()
             web_driver_handler.start(*args, **kwargs)
             self.add_web_driver_handler(web_driver_handler)
         self.LOGGER.info("Initializing drivers... Done!")
@@ -159,7 +186,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self.LOGGER.info(f"Quiting drivers...")
         for web_driver_handler in self._web_driver_handlers:
             web_driver_handler.quit()
-        self.LOGGER.info(f"Quiting drivers Done!...")
+        self.LOGGER.info(f"Quiting drivers... Done!")
     
     def __call__(self, list_items: List[Any], *args, **kwargs) -> None:
         return super(BaseAutomationProcessFromList, self).__call__(list_items, *args, **kwargs)
@@ -262,7 +289,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         }
         original_seleniumwire_options = self.web_driver_start_kwargs.pop('seleniumwire_options', {})
         seleniumwire_options = {**original_seleniumwire_options, **seleniumwire_options}
-        web_driver_handler: WebDriverHandler = self.WEB_DRIVER_HANDLER_CLASS(LOGGER=self.LOGGER)
+        web_driver_handler: WebDriverHandler = self.get_web_driver_handler_copy()
         web_driver_handler.start(
             *self.web_driver_start_args, 
             seleniumwire_options=seleniumwire_options,
@@ -291,7 +318,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     def get_web_driver_handler_execution_count(self, web_driver_handler: WebDriverHandler) -> int:
         return self._success_executions_by_handler[web_driver_handler] + self._errors_executions_by_handler[web_driver_handler]
         
-    def increment_web_driver_success_execution_count(self, web_driver_handler: WebDriverHandler) -> None:
+    def increment_web_driver_handler_success_count(self, web_driver_handler: WebDriverHandler) -> None:
         if not self.proxies:
             with self._lock:
                 self._success_executions_by_handler[web_driver_handler] += 1

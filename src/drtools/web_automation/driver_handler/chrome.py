@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from seleniumwire.webdriver import Chrome as ChromeWebDriver
+from fake_useragent import UserAgent
 
 
 class ChromeWebDriverHandler(WebDriverHandler):
@@ -15,12 +16,14 @@ class ChromeWebDriverHandler(WebDriverHandler):
         self,
         options: ChromeOptions=None,
         options_arguments: List[str]=[],
+        # proxy_server: str=None,
         load_images: bool=False,
         load_js: bool=True,
         remove_ui: bool=False,
         prevent_bot_detection: bool=True,
         warning_logs: bool=True,
-        seleniumwire_options: Dict=None
+        seleniumwire_options: Dict=None,
+        executable_path: str=None,
     ) -> None:
         """Start Selenium Wire Chrome Driver.
         
@@ -52,6 +55,10 @@ class ChromeWebDriverHandler(WebDriverHandler):
         for arg in options_arguments:
             options.add_argument(arg)
 
+        # handle proxy_server
+        # if proxy_server:
+        #     options.add_argument(f'--proxy-server={proxy_server}')
+
         # Set chrome prefs
         chrome_prefs = {
             "profile.default_content_setting_values": {},
@@ -75,9 +82,11 @@ class ChromeWebDriverHandler(WebDriverHandler):
         # Remove UI
         if remove_ui:
             remove_ui_args = [
-                '--start-maximized',
                 '--headless',
+                'start-maximized',
+                'window-size=1920x1080',
                 '--no-sandbox',
+                '--disable-gpu',
                 '--mute-audio',
             ]
             for remove_ui_arg in remove_ui_args:
@@ -97,17 +106,18 @@ class ChromeWebDriverHandler(WebDriverHandler):
             logging.getLogger('urllib3.connectionpool') \
                 .setLevel(logging.WARNING)
 
+        if not executable_path:
+            executable_path = ChromeDriverManager().install()
+
         # Initialize driver
-        driver = ChromeWebDriver(
-            options=options, 
-            service=ChromeService(ChromeDriverManager().install()),
-            seleniumwire_options=seleniumwire_options,
-        )
+        driver = ChromeWebDriver(options=options, service=ChromeService(executable_path), seleniumwire_options=seleniumwire_options)
         
         # Prevent bot detection
         if prevent_bot_detection:
+            user_agent = UserAgent()
+            user_agent = user_agent.random
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
+            driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": user_agent})
         
         self.set_driver(driver)
     

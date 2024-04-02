@@ -22,14 +22,15 @@ from ..exceptions import (
 class WebDriverHandler:
     
     driver: WebDriver = None # Must be set
-    BOT_DETECTION_METHODS: List[BotDetection] = []
-    BOT_DETECTION_MAX_RETRIES: int = 5
-    BOT_DETECTION_RETRY_WAIT_TIME: int = 10 # Seconds
     
     def __init__(
         self, 
         driver: WebDriver=None,
         LOGGER: Logger=None,
+        bot_detection_methods: List[BotDetection]=[],
+        bot_detection_max_retries: int=5,
+        bot_detection_retry_wait_time: int=10, # Seconds
+        bot_detection_wait_for_presence_delay: int=1.5, # Seconds
     ) -> None:
         if not LOGGER:
             LOGGER = Logger(
@@ -37,9 +38,25 @@ class WebDriverHandler:
                 formatter_options=FormatterOptions(include_datetime=True, include_logger_name=True, include_level_name=True),
                 default_start=False
             )
-        self.set_logger(LOGGER)
         self.set_driver(driver)
+        self.set_logger(LOGGER)
         self.set_actions(ActionChains(self.get_driver()))
+        self.bot_detection_methods = bot_detection_methods
+        self.bot_detection_max_retries = bot_detection_max_retries
+        self.bot_detection_retry_wait_time = bot_detection_retry_wait_time
+        self.bot_detection_wait_for_presence_delay = bot_detection_wait_for_presence_delay
+
+    def set_bot_detection_config(
+        self,
+        bot_detection_methods: List[BotDetection],
+        bot_detection_max_retries: int=5,
+        bot_detection_retry_wait_time: int=10, # Seconds
+        bot_detection_wait_for_presence_delay: int=1.5, # Seconds
+    ) -> None:
+        self.bot_detection_methods = bot_detection_methods
+        self.bot_detection_max_retries = bot_detection_max_retries
+        self.bot_detection_retry_wait_time = bot_detection_retry_wait_time
+        self.bot_detection_wait_for_presence_delay = bot_detection_wait_for_presence_delay
 
     def start(self, *args, **kwargs) -> None:
         raise NotImplementedError
@@ -57,8 +74,8 @@ class WebDriverHandler:
         self._driver = driver
         
     def add_bot_detection_method(self, bot_detection: BotDetection) -> None:
-        if bot_detection not in self.BOT_DETECTION_METHODS:
-            self.BOT_DETECTION_METHODS.append(bot_detection)
+        if bot_detection not in self.bot_detection_methods:
+            self.bot_detection_methods.append(bot_detection)
         
     def get_actions(self) -> ActionChains:
         return self._actions
@@ -316,29 +333,26 @@ class WebDriverHandler:
             Selenium WebDriver
         url : str
             The desired URL page.
-
-        Returns
-        -------
-        WebDriver
-            Selenium WebDriver
         """
         self.LOGGER.debug(f"Go to page: {url}...")
         retries = -1
         while True:
             self.driver.get(url)
             bot_detection_located = False
-            for bot_detection in self.BOT_DETECTION_METHODS:
+            for bot_detection in self.bot_detection_methods:
                 try:
-                    bot_detection.detect(self.driver)
+                    bot_detection.detect(self)
                 except BotDetectionError as exc:
                     bot_detection_located = True
                     break
             if not bot_detection_located:
                 break
             retries += 1
-            if retries >= self.BOT_DETECTION_MAX_RETRIES:
-                raise BotDetectionMaxRetriesError(f"Bot detection retry attempts reach maximum {self.BOT_DETECTION_MAX_RETRIES:,}.")
-            time.sleep(self.BOT_DETECTION_RETRY_WAIT_TIME)
+            if retries >= self.bot_detection_max_retries:
+                raise BotDetectionMaxRetriesError(f"Bot detection retry attempts reach maximum {self.bot_detection_max_retries:,}.")
+            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s to retry load page...')
+            time.sleep(self.bot_detection_retry_wait_time)
+            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s to retry load page... Done!')
         self.LOGGER.debug(f"Go to page: {url}... Done!")
         
     def find_element(
