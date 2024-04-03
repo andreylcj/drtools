@@ -16,7 +16,6 @@ class ChromeWebDriverHandler(WebDriverHandler):
         self,
         options: ChromeOptions=None,
         options_arguments: List[str]=[],
-        # proxy_server: str=None,
         load_images: bool=False,
         load_js: bool=True,
         remove_ui: bool=False,
@@ -64,10 +63,6 @@ class ChromeWebDriverHandler(WebDriverHandler):
             options.add_argument('--window-size=1920x1080')
         if not has_start_maximized:
             options.add_argument('--start-maximized')
-
-        # handle proxy_server
-        # if proxy_server:
-        #     options.add_argument(f'--proxy-server={proxy_server}')
 
         # Set chrome prefs
         chrome_prefs = {
