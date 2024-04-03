@@ -60,6 +60,8 @@ class BaseAutomationProcess:
         self._quit = quit
         self._result = None
         self.web_driver_handler = None
+        self.web_driver_handler_start_kwargs = {}
+        self.web_driver_start_args = ()
         self.web_driver_start_kwargs = {}
         self.start_web_driver_handler(self.driver, self.LOGGER)
     
@@ -82,11 +84,11 @@ class BaseAutomationProcess:
             kwargs['bot_detection_retry_wait_time'] = self.BOT_DETECTION_RETRY_WAIT_TIME
         if 'bot_detection_wait_for_presence_delay' not in kwargs:
             kwargs['bot_detection_wait_for_presence_delay'] = self.BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY
-        self.web_driver_start_kwargs = deepcopy(kwargs)
+        self.web_driver_handler_start_kwargs = deepcopy(kwargs)
         self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER, **kwargs)
     
     @property
-    def web_driver_start_args(self) -> Tuple:
+    def web_driver_handler_start_args(self) -> Tuple:
         return (self.driver, self.LOGGER)
     
     def get_web_driver_handler_copy(self) -> WebDriverHandler:
@@ -94,6 +96,8 @@ class BaseAutomationProcess:
     
     def start(self, *args, **kwargs) -> None:
         self.LOGGER.info(f"Initializing driver...")
+        self.web_driver_start_args = args
+        self.web_driver_start_kwargs = kwargs
         self.web_driver_handler.start(*args, **kwargs)
         self.LOGGER.info("Initializing driver... Done!")
     
@@ -284,23 +288,17 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     #########################
     
+    def get_proxy_url(self) -> str:
+        return random.choice(self.proxies)
+    
     def get_proxy_web_driver_handler(self) -> WebDriverHandler:
-        random_proxy_server = random.choice(self.proxies)
-        seleniumwire_options = {
-            'proxy': {
-                'http': f'{random_proxy_server}',
-                'https': f'{random_proxy_server}',
-                'verify_ssl': False,
-            },
-        }
+        proxy_url = self.get_proxy_url()
+        seleniumwire_options = {'proxy': {'http': f'{proxy_url}', 'https': f'{proxy_url}','verify_ssl': False}}
         original_seleniumwire_options = self.web_driver_start_kwargs.pop('seleniumwire_options', {})
         seleniumwire_options = {**original_seleniumwire_options, **seleniumwire_options}
+        kwargs = {**self.web_driver_start_kwargs, 'seleniumwire_options': seleniumwire_options}
         web_driver_handler: WebDriverHandler = self.get_web_driver_handler_copy()
-        web_driver_handler.start(
-            *self.web_driver_start_args, 
-            seleniumwire_options=seleniumwire_options,
-            **self.web_driver_start_kwargs
-        )
+        web_driver_handler.start(*self.web_driver_start_args, **kwargs)
         return web_driver_handler
     
     def pop_web_driver_handler(self) -> WebDriverHandler:
