@@ -122,8 +122,8 @@ class ChromeWebDriverHandler(WebDriverHandler):
         
         # Prevent bot detection
         if prevent_bot_detection:
-            user_agent = UserAgent()
-            user_agent = user_agent.random
+            user_agent = UserAgent(browsers="chrome", os="windows", platforms="pc")
+            user_agent = user_agent.getChrome['useragent']
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": user_agent})
         
