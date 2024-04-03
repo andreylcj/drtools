@@ -146,7 +146,7 @@ class WebDriverHandler:
         raise_exception: bool=False,
         js: bool=False,
         wait_for_el: bool=True
-    ):
+    ) -> None:
         if wait_for_el:
             element = self.wait_for_element_presence_located_by_xpath(query)
         else:
@@ -421,6 +421,51 @@ class WebDriverHandler:
                 raise exc
             result = None
         return result
+    
+    def find_element_on_shadow_root(
+        self,
+        parent_shadow_query: str,
+        query: str, 
+        by: By=By.CLASS_NAME,
+        parent_shadow_reference_el: WebElement=None, 
+        parent_shadow_by: By=By.XPATH,
+        raise_exception: bool=False,
+    ) -> WebElement:
+        parent_shadow = self.find_element(parent_shadow_query, parent_shadow_reference_el, parent_shadow_by, raise_exception)
+        element = self.find_element(query, parent_shadow.shadow_root, by, raise_exception)
+        return element
+    
+    def find_element_on_shadow_root_then_click(
+        self,
+        parent_shadow_query: str,
+        query: str, 
+        by: By=By.CLASS_NAME,
+        parent_shadow_reference_el: WebElement=None, 
+        parent_shadow_by: By=By.XPATH,
+        raise_exception: bool=False,
+        js: bool=False,
+        wait_for_el: bool=True
+    ) -> None:
+        if wait_for_el:
+            element = self.wait_for_element_presence_located_by_xpath(parent_shadow_query)
+            element = self.find_element_on_shadow_root(
+                parent_shadow_query,
+                query, 
+                by,  
+                parent_shadow_reference_el,
+                parent_shadow_by,
+                raise_exception
+            )
+        else:
+            element = self.find_element_on_shadow_root(
+                parent_shadow_query,
+                query, 
+                by,  
+                parent_shadow_reference_el,
+                parent_shadow_by,
+                raise_exception
+            )
+        self.perform_click(element, js)
     
     def find_elements(
         self,
