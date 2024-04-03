@@ -24,15 +24,21 @@ from .types import (
 )
 from .bot_detection import BotDetection
 from copy import deepcopy
+from .driver_handler.config import (
+    DEFAULT_BOT_DETECTION_METHODS,
+    DEFAULT_BOT_DETECTION_MAX_RETRIES,
+    DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
+    DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
+)
 
 
 class BaseAutomationProcess:
     
     WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler]=ChromeWebDriverHandler
-    BOT_DETECTION_METHODS: List[BotDetection] = []
-    BOT_DETECTION_MAX_RETRIES: int = 5
-    BOT_DETECTION_RETRY_WAIT_TIME: int = 10 # Seconds
-    BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY: int = 1.5 # Seconds
+    BOT_DETECTION_METHODS: List[BotDetection] = DEFAULT_BOT_DETECTION_METHODS
+    BOT_DETECTION_MAX_RETRIES: int = DEFAULT_BOT_DETECTION_MAX_RETRIES
+    BOT_DETECTION_RETRY_WAIT_TIME: int = DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME
+    BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY: int = DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY
     
     def __init__(
         self, 

@@ -17,6 +17,12 @@ from ..exceptions import (
     BotDetectionError,
     BotDetectionMaxRetriesError
 )
+from .config import (
+    DEFAULT_BOT_DETECTION_METHODS,
+    DEFAULT_BOT_DETECTION_MAX_RETRIES,
+    DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
+    DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
+)
 
 
 class WebDriverHandler:
@@ -27,10 +33,10 @@ class WebDriverHandler:
         self, 
         driver: WebDriver=None,
         LOGGER: Logger=None,
-        bot_detection_methods: List[BotDetection]=[],
-        bot_detection_max_retries: int=5,
-        bot_detection_retry_wait_time: int=10, # Seconds
-        bot_detection_wait_for_presence_delay: int=1.5, # Seconds
+        bot_detection_methods: List[BotDetection]=DEFAULT_BOT_DETECTION_METHODS,
+        bot_detection_max_retries: int=DEFAULT_BOT_DETECTION_MAX_RETRIES,
+        bot_detection_retry_wait_time: int=DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
+        bot_detection_wait_for_presence_delay: int=DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
     ) -> None:
         if not LOGGER:
             LOGGER = Logger(
@@ -49,9 +55,9 @@ class WebDriverHandler:
     def set_bot_detection_config(
         self,
         bot_detection_methods: List[BotDetection],
-        bot_detection_max_retries: int=5,
-        bot_detection_retry_wait_time: int=10, # Seconds
-        bot_detection_wait_for_presence_delay: int=1.5, # Seconds
+        bot_detection_max_retries: int=DEFAULT_BOT_DETECTION_MAX_RETRIES,
+        bot_detection_retry_wait_time: int=DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
+        bot_detection_wait_for_presence_delay: int=DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
     ) -> None:
         self.bot_detection_methods = bot_detection_methods
         self.bot_detection_max_retries = bot_detection_max_retries
@@ -337,7 +343,10 @@ class WebDriverHandler:
         self.LOGGER.debug(f"Go to page: {url}...")
         retries = -1
         while True:
+            
             self.driver.get(url)
+            
+            # Verify for bot detection
             bot_detection_located = False
             for bot_detection in self.bot_detection_methods:
                 try:
@@ -350,9 +359,21 @@ class WebDriverHandler:
             retries += 1
             if retries >= self.bot_detection_max_retries:
                 raise BotDetectionMaxRetriesError(f"Bot detection retry attempts reach maximum {self.bot_detection_max_retries:,}.")
-            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s to retry load page...')
+            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s. Retry: {retries:,}...')
             time.sleep(self.bot_detection_retry_wait_time)
-            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s to retry load page... Done!')
+            self.LOGGER.debug(f'Sleeping for {self.bot_detection_retry_wait_time:,}s. Retry: {retries:,}... Done!')
+            
+            # After wait, Verify for bot detection again. If not find break
+            # bot_detection_located = False
+            # for bot_detection in self.bot_detection_methods:
+            #     try:
+            #         bot_detection.detect(self)
+            #     except BotDetectionError as exc:
+            #         bot_detection_located = True
+            #         break
+            # if not bot_detection_located:
+            #     break
+            
         self.LOGGER.debug(f"Go to page: {url}... Done!")
         
     def find_element(
