@@ -62,6 +62,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
                 has_start_maximized = True
             options.add_argument(arg)
         if not has_window_size:
+            # TODO - Set random available window size
             options.add_argument('--window-size=1920x1080')
         if not has_start_maximized:
             options.add_argument('--start-maximized')
@@ -93,7 +94,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
         # Remove UI
         if remove_ui:
             remove_ui_args = [
-                '--headless',
+                '--headless=new',
                 '--no-sandbox',
                 '--disable-gpu',
                 '--mute-audio',
