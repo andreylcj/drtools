@@ -227,6 +227,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     def run_middleware(self, worker: Worker) -> None:
         list_item = worker['list_item']
+        list_item_cp = deepcopy(list_item)
         list_item_idx = worker['list_item_idx']
         started_at = worker['started_at']
         total = worker['total']
@@ -259,7 +260,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 error=error,
                 error_traceback=error_traceback,
                 list_item_result=list_item_result,
-                list_item=list_item,
+                list_item=list_item_cp,
             )
         )
         processed_items_num = self.get_automation_processed_items_num()
