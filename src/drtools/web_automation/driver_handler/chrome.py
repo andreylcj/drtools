@@ -5,6 +5,7 @@ import logging
 from .handler import WebDriverHandler
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.webdriver import WebDriver as SeleniumChromeWebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from seleniumwire.webdriver import Chrome as ChromeWebDriver
 from fake_useragent import UserAgent
@@ -112,8 +113,13 @@ class ChromeWebDriverHandler(WebDriverHandler):
         if not executable_path:
             executable_path = ChromeDriverManager().install()
 
-        # Initialize driver
-        driver = ChromeWebDriver(options=options, service=ChromeService(executable_path), seleniumwire_options=seleniumwire_options)
+        # Start selenium wire instance only if seleniumwire_options is not empty
+        if not seleniumwire_options:
+            # Initialize driver
+            driver = SeleniumChromeWebDriver(options, ChromeService(executable_path))
+        else:
+            # Initialize driver
+            driver = ChromeWebDriver(options, ChromeService(executable_path), seleniumwire_options=seleniumwire_options)
         
         # Prevent bot detection
         if prevent_bot_detection:

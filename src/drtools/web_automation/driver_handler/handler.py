@@ -127,13 +127,13 @@ class WebDriverHandler:
         resp = return_if_not_success
         for i in range(max_tries):
             try:
-                time.sleep(wait_time) 
                 resp = func()
                 return resp
             except Exception as exc:
                 resp = return_if_not_success
-                self.LOGGER.debug(str(exc))
-                continue
+                tries = i + 1
+                self.LOGGER.debug(f'Tries: {tries:,} | Error: {str(exc)}')
+                time.sleep(wait_time) 
         if raise_exception:
             raise Exception(f"Not success after {max_tries} tries")
         return resp
