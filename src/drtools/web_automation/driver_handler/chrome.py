@@ -24,6 +24,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
         warning_logs: bool=True,
         seleniumwire_options: Dict=None,
         executable_path: str=None,
+        download_path: str=None,
     ) -> None:
         """Start Selenium Wire Chrome Driver.
         
@@ -79,10 +80,14 @@ class ChromeWebDriverHandler(WebDriverHandler):
         if not load_js:
             chrome_prefs['profile.default_content_setting_values']['javascript'] = 2
 
+        # set download path
+        if download_path:
+            chrome_prefs['download.default_directory'] = download_path
+
         # Set Experimental Options
         previous_prefs = options.experimental_options.get("prefs", {})
         prefs = {**chrome_prefs, **previous_prefs}
-        self.downloads_path = prefs.get("download.default_directory", "~/Downloads")
+        self.download_path = prefs.get("download.default_directory", download_path)
         options.experimental_options["prefs"] = prefs
 
         # Remove UI
