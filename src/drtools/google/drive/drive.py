@@ -2,16 +2,22 @@
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from typing import List
+from typing import List, Tuple
 from .types import (
     FileId,
     FilesListResult,
+    FilesListItem,
 )
 from .utils import (
     bytes_to_json
 )
 import io
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import (
+    MediaIoBaseDownload, 
+    MediaFileUpload, 
+    DEFAULT_CHUNK_SIZE,
+    MediaIoBaseUpload,
+)
 from drtools.logging import Logger, FormatterOptions
 from typing import Callable
 
@@ -75,16 +81,8 @@ class Drive:
                 for item in items
             ]
         return items
-
-    def get_folder_content_from_path(
-        self,
-        path: str, 
-        page_size: int=1000, 
-        trashed: bool=False, 
-        fields: str="nextPageToken, files(id, name, kind, mimeType)",
-        deep: bool=False,
-    ) -> FilesListResult:
-        """List folders and files in Google Drive."""
+    
+    def get_folder_id_from_path(self, path: str) -> FileId:
         folder_names = path.split('/')
         parent_id = None
         parent_path = None
@@ -103,7 +101,19 @@ class Drive:
                 raise Exception(f"Folder not find. Folder name: {folder_name} | Parent path: {parent_path} | Parent ID: {parent_id}")
             parent_id = results['files'][0]['id']
             parent_path = folder_name if idx == 0 else f'{parent_path}/{folder_name}'
-        return self.get_folder_content(parent_id, page_size, trashed, fields, deep)
+        return parent_id
+
+    def get_folder_content_from_path(
+        self,
+        path: str, 
+        page_size: int=1000, 
+        trashed: bool=False, 
+        fields: str="nextPageToken, files(id, name, kind, mimeType)",
+        deep: bool=False,
+    ) -> FilesListResult:
+        """List folders and files in Google Drive."""
+        folder_id = self.get_folder_id_from_path(path)
+        return self.get_folder_content(folder_id, page_size, trashed, fields, deep)
     
     def create_folder(
         self,
@@ -118,18 +128,38 @@ class Drive:
             'parents': [parent_folder_id] if parent_folder_id else []
         }
         if ignore_if_exists:
-            items = self.get_folder_content(parent_folder_id)
-            for item in items['files']:
-                if folder_name == item['name']:
-                    return None
+            if self.children_exists(folder_name, parent_folder_id):
+                return None
         created_folder = self.service.files().create(body=folder_metadata, fields='id').execute()
         return created_folder["id"]
+    
+    def create_folder_from_path(
+        self,
+        folder_path: str, 
+        ignore_if_exists: bool=True
+    ) -> FileId:
+        parent, name = self.get_parent_and_name_from_path(folder_path)
+        parent_id = self.get_folder_id_from_path(parent)
+        return self.create_folder(name, parent_id, ignore_if_exists)
+
+    def get_file_from_path(self, path: str) -> FilesListItem:
+        folder_path, filename = self.get_parent_and_name_from_path(path)
+        folder_content = self.get_folder_content_from_path(folder_path)
+        file_item = [item for item in folder_content['files'] if item['name'] == filename]
+        if len(file_item) > 1:
+            raise Exception(f"There are more than 1 file with same path. Files founde: {len(file_item):,}")
+        if len(file_item) == 0:
+            raise Exception(f"No file found with path: {path}")
+        return file_item[0]
+
+    def get_file_id_from_path(self, path: str) -> FileId:
+        return self.get_file_from_path(path)['id']
     
     def get_file_content(
         self,
         file_id: str,
-        try_handle_mime_type: bool=True,
-        mime_type: str=None,
+        try_handle_mimetype: bool=True,
+        mimetype: str=None,
     ) -> bytes:
         request = self.service.files().get_media(fileId=file_id)
         # create_directories_of_path(filepath)
@@ -141,17 +171,33 @@ class Drive:
             status, done = downloader.next_chunk()
             self.LOGGER.debug(f"Download {int(status.progress() * 100)}%.")
         value = fh.getvalue()
-        if try_handle_mime_type:
-            value = self.handle_bytes_from_mime_type(value, mime_type)
+        if try_handle_mimetype:
+            value = self.handle_bytes_from_mimetype(value, mimetype)
         return value
+    
+    @classmethod
+    def get_parent_and_name_from_path(cls, filepath: str) -> Tuple[str, str]:
+        parent = '/'.join(filepath.split('/')[:-1])
+        name = filepath.split('/')[-1]
+        return parent, name
+    
+    def children_exists(self, name: str, parent_folder_id: str) -> bool:
+        content = self.get_folder_content(parent_folder_id)
+        file_item = [item for item in content['files'] if item['name'] == name]
+        return len(file_item) > 0
+    
+    def path_exists(self, path: str) -> bool:
+        parent, name = self.get_parent_and_name_from_path(path)
+        content = self.get_folder_content_from_path(parent)
+        file_item = [item for item in content['files'] if item['name'] == name]
+        return len(file_item) > 0
     
     def get_file_content_from_path(
         self, 
         filepath: str,
-        try_handle_mime_type: bool=True,
+        try_handle_mimetype: bool=True,
     ) -> io.BytesIO:
-        folder_path = '/'.join(filepath.split('/')[:-1])
-        filename = filepath.split('/')[-1]
+        folder_path, filename = self.get_parent_and_name_from_path(filepath)
         self_folder_content = self.get_folder_content_from_path(folder_path)
         file_item = [item for item in self_folder_content['files'] if item['name'] == filename]
         if len(file_item) > 1:
@@ -159,21 +205,85 @@ class Drive:
         if len(file_item) == 0:
             raise Exception(f"No file found with path: {filepath}")
         file_id = file_item[0]['id']
-        return self.get_file_content(file_id, try_handle_mime_type, file_item[0]['mimeType'])
+        return self.get_file_content(file_id, try_handle_mimetype, file_item[0]['mimeType'])
+    
+    def create_file(
+        self,
+        name: str, 
+        parent_folder_id: FileId, 
+        media: MediaFileUpload=None,
+        ignore_if_exists: bool=True
+    ) -> FileId:
+        """Create a file in Google Drive and return its ID."""
+        file_metadata = {
+            'name': name,
+            'parents': [parent_folder_id] if parent_folder_id else []
+        }
+        if ignore_if_exists:
+            if self.children_exists(name, parent_folder_id):
+                return None
+        kwargs = {'body': file_metadata, 'fields': 'id'}
+        if media:
+            kwargs['media'] = media
+        created_file = self.service.files().create(**kwargs).execute()
+        return created_file["id"]
+    
+    def create_file_from_path(
+        self,
+        filepath: str, 
+        media: MediaFileUpload=None,
+        ignore_if_exists: bool=True
+    ) -> FileId:
+        parent, name = self.get_parent_and_name_from_path(filepath)
+        parent_id = self.get_folder_id_from_path(parent)
+        return self.create_file(name, parent_id, media, ignore_if_exists)
+    
+    def update_file_from_path(
+        self, 
+        content_bytes: bytes, 
+        filepath: str,
+        mimetype: str,
+        chunksize=DEFAULT_CHUNK_SIZE,
+        resumable=False
+    ):
+        file_id = self.get_file_id_from_path(filepath)
+        content_stream = io.BytesIO(content_bytes)
+        media = MediaIoBaseUpload(content_stream, **media_kwargs)
+        upload_result = self.service.files().update(file_id, media_body=media).execute()
+        return upload_result
+    
+    def create_file_and_set_content(
+        self,
+        content_bytes: bytes, 
+        filepath: str, 
+        media: MediaFileUpload=None,
+        ignore_if_exists: bool=True
+    ):
+        file_id = self.create_file_from_path(filepath, media, ignore_if_exists)
+        if not file_id:
+            self.LOGGER.debug(f'File {filepath} already exists')
+            return None
+        media_kwargs = {'mimetype': None, 'chunksize': DEFAULT_CHUNK_SIZE, 'resumable': False}
+        if media:
+            media_kwargs['mimetype'] = media.mimetype()
+            media_kwargs['chunksize'] = media.chunksize()
+            media_kwargs['resumable'] = media.resumable()
+        upload_result = self.update_file_from_path(content_bytes, filepath, **media_kwargs)
+        return upload_result
     
     @classmethod
-    def handle_bytes_from_mime_type(
+    def handle_bytes_from_mimetype(
         cls,
         content: bytes,
-        mime_type: str,
+        mimetype: str,
         raise_exception: bool=True
     ):
-        if mime_type == 'application/json':
+        if mimetype == 'application/json':
             value = bytes_to_json(content)
         
         else:
             if raise_exception:
-                raise Exception(f"Mime Type {mime_type} not allow yet.")
+                raise Exception(f"Mime Type {mimetype} not allow yet.")
             value = content
         
         return value
