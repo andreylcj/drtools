@@ -2,7 +2,7 @@
 
 from .driver_handler.handler import WebDriverHandler
 from .driver_handler.chrome import ChromeWebDriverHandler
-from typing import List, Any, Callable, Union, Tuple
+from typing import List, Any, Union, Tuple
 from drtools.logging import Logger, FormatterOptions
 import uuid
 from datetime import datetime
@@ -33,8 +33,15 @@ from .driver_handler.config import (
 
 
 class BaseAutomationProcess:
+    """
+    - On self.__init__(), starts and Web Driver Handler instance from method self.start_web_driver_handler().
+    - Method self.start_web_driver_handler() instantiate the Web Driver Handler instance defined on self.WEB_DRIVER_HANDLER_CLASS
+    - Attribute self.web_driver_handler_start_kwargs is set on self.start_web_driver_handler()
+    - When call self.start() method, will start web driver on Web Driver Handler instance initiated on self.__init__()
+    """
     
-    WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler]=ChromeWebDriverHandler
+    NAME: str=None # Automation name. Must be unique. Mandatory
+    WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler]=ChromeWebDriverHandler # Web Driver Handler instance to be initiated on self.start_web_driver_handler()
     BOT_DETECTION_METHODS: List[BotDetection] = DEFAULT_BOT_DETECTION_METHODS
     BOT_DETECTION_MAX_RETRIES: int = DEFAULT_BOT_DETECTION_MAX_RETRIES
     BOT_DETECTION_RETRY_WAIT_TIME: int = DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME
@@ -47,6 +54,7 @@ class BaseAutomationProcess:
         start: bool=False,
         quit: bool=False,
     ) -> None:
+        assert self.NAME is not None, "NAME must be set."
         self.web_driver_handler = None
         if not LOGGER:
             LOGGER = Logger(
@@ -72,19 +80,19 @@ class BaseAutomationProcess:
     def set_logger(self, LOGGER: Logger) -> None:
         self.LOGGER = LOGGER
         self.web_driver_handler.set_logger(LOGGER)
-            
+    
     def start_web_driver_handler(self, driver: WebDriver=None, LOGGER: Logger=None, **kwargs) -> None:
         kwargs.pop('driver', None)
         kwargs.pop('LOGGER', None)
-        if 'bot_detection_methods' not in kwargs:
-            kwargs['bot_detection_methods'] = self.BOT_DETECTION_METHODS
-        if 'bot_detection_max_retries' not in kwargs:
-            kwargs['bot_detection_max_retries'] = self.BOT_DETECTION_MAX_RETRIES
-        if 'bot_detection_retry_wait_time' not in kwargs:
-            kwargs['bot_detection_retry_wait_time'] = self.BOT_DETECTION_RETRY_WAIT_TIME
-        if 'bot_detection_wait_for_presence_delay' not in kwargs:
-            kwargs['bot_detection_wait_for_presence_delay'] = self.BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY
+        kwargs['bot_detection_methods'] = kwargs.get('bot_detection_methods', self.BOT_DETECTION_METHODS)
+        kwargs['bot_detection_max_retries'] = kwargs.get('bot_detection_max_retries', self.BOT_DETECTION_MAX_RETRIES)
+        kwargs['bot_detection_retry_wait_time'] = kwargs.get('bot_detection_retry_wait_time', self.BOT_DETECTION_RETRY_WAIT_TIME)
+        kwargs['bot_detection_wait_for_presence_delay'] = kwargs.get('bot_detection_wait_for_presence_delay', self.BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY)
         self.web_driver_handler_start_kwargs = deepcopy(kwargs)
+        if driver:
+            self.set_driver(driver)
+        if LOGGER:
+            self.set_driver(LOGGER)
         self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER, **kwargs)
     
     @property
@@ -96,8 +104,8 @@ class BaseAutomationProcess:
     
     def start(self, *args, **kwargs) -> None:
         self.LOGGER.info(f"Initializing driver...")
-        self.web_driver_start_args = args
-        self.web_driver_start_kwargs = kwargs
+        self.web_driver_start_args = deepcopy(args)
+        self.web_driver_start_kwargs = deepcopy(kwargs)
         self.web_driver_handler.start(*args, **kwargs)
         self.LOGGER.info("Initializing driver... Done!")
     
@@ -159,33 +167,30 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         raise_exception: bool=False,
         bulk_size: int=None,
         wait_time: int=None,
-        wait_pre_action: Callable=None,
-        wait_post_action: Callable=None,
         verbose_traceback: bool=False,
         max_workers: int=1,
-        proxies: List[str]=[],
     ) -> None:
         super(BaseAutomationProcessFromList, self).__init__(None, LOGGER, start, quit)
         self.raise_exception = raise_exception
         self.bulk_size = bulk_size
         self.wait_time = wait_time
-        self.wait_pre_action = wait_pre_action
-        self.wait_post_action = wait_post_action
         self.verbose_traceback = verbose_traceback
         self.max_workers = max_workers
-        self.proxies = proxies
         self._web_driver_handlers = []
         self._lock = Lock()
         self._success_executions_by_handler = {} # web_driver_handler -> execution_count
         self._errors_executions_by_handler = {} # web_driver_handler -> execution_count
     
     def add_web_driver_handler(self, web_driver_handler: WebDriverHandler) -> None:
-        self._web_driver_handlers.append(web_driver_handler)
-        self._success_executions_by_handler[web_driver_handler] = 0
-        self._errors_executions_by_handler[web_driver_handler] = 0
+        with self._lock:
+            self._web_driver_handlers.append(web_driver_handler)
+            self._success_executions_by_handler[web_driver_handler] = 0
+            self._errors_executions_by_handler[web_driver_handler] = 0
     
     def start(self, *args, **kwargs):
         self.LOGGER.info(f"Initializing drivers...")
+        self.web_driver_start_args = deepcopy(args)
+        self.web_driver_start_kwargs = deepcopy(kwargs)
         for i in range(self.max_workers):
             web_driver_handler = self.get_web_driver_handler_copy()
             web_driver_handler.start(*args, **kwargs)
@@ -252,7 +257,6 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 self.LOGGER.error(error_traceback)
             self.increment_automation_error_count()
             self.increment_web_driver_handler_error_count(web_driver_handler)
-        self.handle_web_driver_handler_after_run(web_driver_handler)
         self.append_automation_result(
                 AutomationFromListItemResult(
                 started_at=str(item_started_at),
@@ -269,53 +273,37 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         remaining_time = (total - processed_items_num) * speed
         remaining_time_msg = display_time(int(remaining_time))
         self.LOGGER.debug(f"({processed_items_num:,}/{total:,}) Complete! Expected remaining time: {remaining_time_msg}...")
-        if self.wait_time \
-        and not self.proxies:
-            if not self.bulk_size:
-                raise Exception("When wait_time is not None, bulk_size must be set.")
+        if self.bulk_size:
             processed_items_num = self.get_web_driver_handler_execution_count(web_driver_handler)
             if processed_items_num % self.bulk_size == 0:
-                if self.wait_pre_action:
-                    self.LOGGER.debug('Waiting pre action...')
-                    self.wait_pre_action()
-                    self.LOGGER.debug('Waiting pre action... Done!')
-                self.LOGGER.debug(f'Waiting for {self.wait_time:,}s...')
-                time.sleep(self.wait_time)
-                self.LOGGER.debug(f'Waiting for {self.wait_time:,}s... Done!')
-                if self.wait_post_action:
-                    self.LOGGER.debug('Waiting post action...')
-                    self.wait_post_action()
-                    self.LOGGER.debug('Waiting post action... Done!')
+                self.LOGGER.debug('Waiting pre action...')
+                self.wait_pre_action()
+                self.LOGGER.debug('Waiting pre action... Done!')
+                if self.wait_time:
+                    self.LOGGER.debug(f'Waiting for {self.wait_time:,}s...')
+                    time.sleep(self.wait_time)
+                    self.LOGGER.debug(f'Waiting for {self.wait_time:,}s... Done!')
+                self.LOGGER.debug('Waiting post action...')
+                self.wait_post_action()
+                self.LOGGER.debug('Waiting post action... Done!')
+        self.handle_web_driver_handler_after_run(web_driver_handler)
+    
+    def wait_pre_action(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> None:
+        pass
+    
+    def wait_post_action(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> None:
+        pass
     
     #########################
     
-    def get_proxy_url(self) -> str:
-        return random.choice(self.proxies)
-    
-    def get_proxy_web_driver_handler(self) -> WebDriverHandler:
-        proxy_url = self.get_proxy_url()
-        seleniumwire_options = {'proxy': {'http': f'{proxy_url}', 'https': f'{proxy_url}','verify_ssl': False}}
-        original_seleniumwire_options = self.web_driver_start_kwargs.pop('seleniumwire_options', {})
-        seleniumwire_options = {**original_seleniumwire_options, **seleniumwire_options}
-        kwargs = {**self.web_driver_start_kwargs, 'seleniumwire_options': seleniumwire_options}
-        web_driver_handler: WebDriverHandler = self.get_web_driver_handler_copy()
-        web_driver_handler.start(*self.web_driver_start_args, **kwargs)
-        return web_driver_handler
-    
     def pop_web_driver_handler(self) -> WebDriverHandler:
-        if self.proxies:
-            return self.get_proxy_web_driver_handler()
-        else:
-            with self._lock:
-                web_driver_handler: WebDriverHandler = self._web_driver_handlers.pop(0)
-                return web_driver_handler
+        with self._lock:
+            web_driver_handler: WebDriverHandler = self._web_driver_handlers.pop(0)
+            return web_driver_handler
     
     def handle_web_driver_handler_after_run(self, web_driver_handler: WebDriverHandler) -> None:
-        if self.proxies:
-            web_driver_handler.quit()
-        else:
-            with self._lock:
-                self._web_driver_handlers.append(web_driver_handler)
+        with self._lock:
+            self._web_driver_handlers.append(web_driver_handler)
     
     def get_web_driver_handlers(self) -> List[WebDriverHandler]:
         return self._web_driver_handlers
@@ -324,14 +312,12 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         return self._success_executions_by_handler[web_driver_handler] + self._errors_executions_by_handler[web_driver_handler]
         
     def increment_web_driver_handler_success_count(self, web_driver_handler: WebDriverHandler) -> None:
-        if not self.proxies:
-            with self._lock:
-                self._success_executions_by_handler[web_driver_handler] += 1
+        with self._lock:
+            self._success_executions_by_handler[web_driver_handler] += 1
             
     def increment_web_driver_handler_error_count(self, web_driver_handler: WebDriverHandler) -> None:
-        if not self.proxies:
-            with self._lock:
-                self._errors_executions_by_handler[web_driver_handler] += 1
+        with self._lock:
+            self._errors_executions_by_handler[web_driver_handler] += 1
     
     #########################
     
@@ -389,3 +375,46 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     def run(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> Any:
         raise NotImplementedError
+    
+
+class ProxyAutomation(BaseAutomationProcessFromList):
+    
+    def __init__(self, *args, proxies: List[str], **kwargs) -> None:
+        super(ProxyAutomation, self).__init__(*args, **kwargs)
+        self._proxies = proxies
+    
+    def start(self, *args, **kwargs):
+        self.web_driver_start_args = deepcopy(args)
+        self.web_driver_start_kwargs = deepcopy(kwargs)
+    
+    def quit(self):
+        pass
+    
+    def get_proxy_url(self) -> str:
+        return random.choice(self._proxies)
+    
+    def get_proxy_web_driver_handler(self) -> WebDriverHandler:
+        proxy_url = self.get_proxy_url()
+        seleniumwire_options = {'proxy': {'http': f'{proxy_url}', 'https': f'{proxy_url}','verify_ssl': False}}
+        original_seleniumwire_options = self.web_driver_start_kwargs.pop('seleniumwire_options', {})
+        seleniumwire_options = {**original_seleniumwire_options, **seleniumwire_options}
+        kwargs = {**self.web_driver_start_kwargs, 'seleniumwire_options': seleniumwire_options}
+        web_driver_handler: WebDriverHandler = self.get_web_driver_handler_copy()
+        web_driver_handler.start(*self.web_driver_start_args, **kwargs)
+        self.add_web_driver_handler(web_driver_handler)
+        return web_driver_handler
+    
+    def pop_web_driver_handler(self) -> WebDriverHandler:
+        return self.get_proxy_web_driver_handler()
+    
+    def handle_web_driver_handler_after_run(self, web_driver_handler: WebDriverHandler) -> None:
+        web_driver_handler.quit()
+        with self._lock:
+            for i in range(len(self._web_driver_handlers)):
+                wdh = self._web_driver_handlers[i]
+                if web_driver_handler == wdh:
+                    self._web_driver_handlers.pop(i)
+                    del self._success_executions_by_handler[web_driver_handler]
+                    del self._errors_executions_by_handler[web_driver_handler]
+                    return None
+        raise Exception(f"Web Driver Handler not found: {web_driver_handler}")
