@@ -1,6 +1,15 @@
 
 
 from typing import List, TypedDict, Optional
+from enum import Enum
+
+
+class Mimetype(Enum):
+    JSON = ('application/json',)
+    
+    @property
+    def content_type(self) -> str:
+        return self.value[0]
 
 
 FileId = str

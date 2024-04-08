@@ -2,11 +2,12 @@
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union
 from .types import (
     FileId,
     FilesListResult,
     FilesListItem,
+    Mimetype,
 )
 from .utils import (
     bytes_to_json
@@ -20,6 +21,7 @@ from googleapiclient.http import (
 )
 from drtools.logging import Logger, FormatterOptions
 from typing import Callable
+import json
 
 
 class Drive:
@@ -33,10 +35,8 @@ class Drive:
         LOGGER: Logger=None,
         **kwargs,
     ) -> None:
-        scopes = kwargs.pop('scopes', None)
-        if not scopes:
-            scopes = self.SCOPES
-        self.credentials = credentials_method(*args, scopes=scopes, **kwargs)
+        kwargs['scopes'] = kwargs.get('scopes', self.SCOPES)
+        self.credentials = credentials_method(*args, **kwargs)
         if not LOGGER:
             LOGGER = Logger(
                 name="Drive",
@@ -211,7 +211,7 @@ class Drive:
         self,
         name: str, 
         parent_folder_id: FileId, 
-        media: MediaFileUpload=None,
+        media: Union[MediaFileUpload, MediaIoBaseUpload]=None,
         ignore_if_exists: bool=True
     ) -> FileId:
         """Create a file in Google Drive and return its ID."""
@@ -221,55 +221,90 @@ class Drive:
         }
         if ignore_if_exists:
             if self.children_exists(name, parent_folder_id):
+                self.LOGGER.debug(f'File with name {name} inside folder with id {parent_folder_id} already exists')
                 return None
         kwargs = {'body': file_metadata, 'fields': 'id'}
         if media:
-            kwargs['media'] = media
+            kwargs['media_body'] = media
         created_file = self.service.files().create(**kwargs).execute()
         return created_file["id"]
     
-    def create_file_from_path(
+    def create_file_from_media_file(
         self,
         filepath: str, 
-        media: MediaFileUpload=None,
+        filename: str,
+        mimetype: str=None,
+        chunksize=DEFAULT_CHUNK_SIZE,
+        resumable=False,
         ignore_if_exists: bool=True
     ) -> FileId:
         parent, name = self.get_parent_and_name_from_path(filepath)
         parent_id = self.get_folder_id_from_path(parent)
+        media = MediaFileUpload(filename, mimetype, chunksize, resumable)
         return self.create_file(name, parent_id, media, ignore_if_exists)
     
-    def update_file_from_path(
-        self, 
+    def create_file_from_media_io(
+        self,
         content_bytes: bytes, 
         filepath: str,
         mimetype: str,
         chunksize=DEFAULT_CHUNK_SIZE,
-        resumable=False
-    ):
-        file_id = self.get_file_id_from_path(filepath)
-        content_stream = io.BytesIO(content_bytes)
-        media = MediaIoBaseUpload(content_stream, **media_kwargs)
-        upload_result = self.service.files().update(file_id, media_body=media).execute()
-        return upload_result
-    
-    def create_file_and_set_content(
-        self,
-        content_bytes: bytes, 
-        filepath: str, 
-        media: MediaFileUpload=None,
+        resumable=False,
         ignore_if_exists: bool=True
+    ) -> FileId:
+        parent, name = self.get_parent_and_name_from_path(filepath)
+        parent_id = self.get_folder_id_from_path(parent)
+        content_stream = io.BytesIO(content_bytes)
+        media = MediaIoBaseUpload(content_stream, mimetype, chunksize, resumable)
+        return self.create_file(name, parent_id, media, ignore_if_exists)
+    
+    # def update_file_from_path(
+    #     self, 
+    #     content_bytes: bytes, 
+    #     filepath: str,
+    #     mimetype: str,
+    #     chunksize=DEFAULT_CHUNK_SIZE,
+    #     resumable=False,
+    # ):
+    #     file_id = self.get_file_id_from_path(filepath)
+    #     content_stream = io.BytesIO(content_bytes)
+    #     media_body = MediaIoBaseUpload(content_stream, mimetype, chunksize, resumable)
+    #     upload_result = self.service.files().update(file_id, media_body=media_body).execute()
+    #     return upload_result
+    
+    # def create_file_and_set_content(
+    #     self,
+    #     content_bytes: bytes, 
+    #     filepath: str, 
+    #     mimetype: str,
+    #     chunksize=DEFAULT_CHUNK_SIZE,
+    #     resumable=False,
+    #     ignore_if_exists: bool=True,
+    # ):
+    #     file_id = self.create_file_from_path(filepath, None, ignore_if_exists)
+    #     if not file_id:
+    #         self.LOGGER.debug(f'File {filepath} already exists')
+    #         return None
+    #     upload_result = self.update_file_from_path(content_bytes, filepath, mimetype, chunksize, resumable)
+    #     return upload_result
+    
+    def upload_dict(
+        self, 
+        data: Dict, 
+        filepath: str,
+        chunksize=DEFAULT_CHUNK_SIZE,
+        resumable=False,
+        ignore_if_exists: bool=True,
     ):
-        file_id = self.create_file_from_path(filepath, media, ignore_if_exists)
-        if not file_id:
-            self.LOGGER.debug(f'File {filepath} already exists')
-            return None
-        media_kwargs = {'mimetype': None, 'chunksize': DEFAULT_CHUNK_SIZE, 'resumable': False}
-        if media:
-            media_kwargs['mimetype'] = media.mimetype()
-            media_kwargs['chunksize'] = media.chunksize()
-            media_kwargs['resumable'] = media.resumable()
-        upload_result = self.update_file_from_path(content_bytes, filepath, **media_kwargs)
-        return upload_result
+        content_bytes = json.dumps(data).encode('utf-8')
+        return self.create_file_from_media_io(
+            content_bytes, 
+            filepath, 
+            Mimetype.JSON.content_type, 
+            chunksize, 
+            resumable, 
+            ignore_if_exists
+        )
     
     @classmethod
     def handle_bytes_from_mimetype(
@@ -278,7 +313,7 @@ class Drive:
         mimetype: str,
         raise_exception: bool=True
     ):
-        if mimetype == 'application/json':
+        if mimetype == Mimetype.JSON.content_type:
             value = bytes_to_json(content)
         
         else:
@@ -308,6 +343,6 @@ class DriveFromServiceAcountFile(Drive):
         **kwargs
     ):
         self.LOGGER.info("Building service...")
-        kwargs.pop('credentials', None)
-        self.service = build('drive', version, *args, credentials=self.credentials, **kwargs)
+        kwargs['credentials'] = self.credentials
+        self.service = build('drive', version, *args, **kwargs)
         self.LOGGER.info("Building service... Done!")

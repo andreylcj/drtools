@@ -9,9 +9,11 @@ class AutomationResult(TypedDict):
     started_at: str
     finished_at: str
     result: Any
+    extra: Dict
 
 
 class AutomationFromListItemResult(TypedDict):
+    id: str
     started_at: str
     finished_at: str
     error: Optional[str]

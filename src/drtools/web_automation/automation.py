@@ -47,6 +47,9 @@ class BaseAutomationProcess:
     BOT_DETECTION_RETRY_WAIT_TIME: int = DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME
     BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY: int = DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY
     
+    def get_unique_id(self, starts_with: str='', ends_with: str='') -> str:
+        return f'{starts_with}{str(uuid.uuid4())}{ends_with}'
+    
     def __init__(
         self, 
         driver: WebDriver=None,
@@ -137,7 +140,8 @@ class BaseAutomationProcess:
     def __call__(self, *args, **kwargs) -> None:
         with self:
             started_at = datetime.now()
-            self.set_execution_id(str(uuid.uuid4()))
+            self.set_execution_id(self.get_unique_id())
+            self.pre_run(*args, **kwargs)
             automation_result: Any = self.run_executor(*args, **kwargs)
             self.set_result(
                 AutomationResult(
@@ -145,14 +149,22 @@ class BaseAutomationProcess:
                     started_at=str(started_at),
                     finished_at=str(datetime.now()),
                     result=automation_result,
+                    extra=None, # Set on post run if needed
                 )
             )
+            self.post_run(*args, **kwargs)
     
+    def pre_run(self, *args, **kwargs) -> Any:
+        pass
+        
     def run_executor(self, *args, **kwargs) -> Any:
         return self.run(self.web_driver_handler, *args, **kwargs)
     
     def run(self, web_driver_handler: WebDriverHandler, *args, **kwargs) -> Any:
         raise NotImplementedError
+    
+    def post_run(self, *args, **kwargs) -> Any:
+        pass
 
 
 class BaseAutomationProcessFromList(BaseAutomationProcess):
@@ -231,6 +243,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 future.result()
     
     def run_middleware(self, worker: Worker) -> None:
+        single_execution_id = self.get_unique_id()
         list_item = worker['list_item']
         list_item_cp = deepcopy(list_item)
         list_item_idx = worker['list_item_idx']
@@ -252,13 +265,14 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 raise exc
             error = str(exc)
             error_traceback = traceback.format_exc()
-            self.LOGGER.error(error)
+            self.LOGGER.error(f'Error on {single_execution_id}: {error}')
             if self.verbose_traceback:
                 self.LOGGER.error(error_traceback)
             self.increment_automation_error_count()
             self.increment_web_driver_handler_error_count(web_driver_handler)
         self.append_automation_result(
                 AutomationFromListItemResult(
+                id=single_execution_id,
                 started_at=str(item_started_at),
                 finished_at=str(datetime.now()),
                 error=error,
