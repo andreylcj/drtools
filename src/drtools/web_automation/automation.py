@@ -200,6 +200,7 @@ class GoogleDriveUploadResults:
         
     def upload_to_google_drive(self):
         self._automation.LOGGER.info('Uploading to Google Drive...')
+        self.start_service()
         results = self._automation.get_result()
         execution_id = self._automation.get_execution_id()
         # create folder if not exists

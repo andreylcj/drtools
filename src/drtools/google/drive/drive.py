@@ -44,7 +44,14 @@ class Drive:
                 default_start=False
             )
         self.LOGGER = LOGGER
-        self.service = None
+        self._service = None
+        
+    def set_service(self, service) -> None:
+        self._service = service
+    
+    @property
+    def service(self):
+        return self._service
         
     def get_folders_from_name(
         self,
@@ -258,36 +265,6 @@ class Drive:
         media = MediaIoBaseUpload(content_stream, mimetype, chunksize, resumable)
         return self.create_file(name, parent_id, media, ignore_if_exists)
     
-    # def update_file_from_path(
-    #     self, 
-    #     content_bytes: bytes, 
-    #     filepath: str,
-    #     mimetype: str,
-    #     chunksize=DEFAULT_CHUNK_SIZE,
-    #     resumable=False,
-    # ):
-    #     file_id = self.get_file_id_from_path(filepath)
-    #     content_stream = io.BytesIO(content_bytes)
-    #     media_body = MediaIoBaseUpload(content_stream, mimetype, chunksize, resumable)
-    #     upload_result = self.service.files().update(file_id, media_body=media_body).execute()
-    #     return upload_result
-    
-    # def create_file_and_set_content(
-    #     self,
-    #     content_bytes: bytes, 
-    #     filepath: str, 
-    #     mimetype: str,
-    #     chunksize=DEFAULT_CHUNK_SIZE,
-    #     resumable=False,
-    #     ignore_if_exists: bool=True,
-    # ):
-    #     file_id = self.create_file_from_path(filepath, None, ignore_if_exists)
-    #     if not file_id:
-    #         self.LOGGER.debug(f'File {filepath} already exists')
-    #         return None
-    #     upload_result = self.update_file_from_path(content_bytes, filepath, mimetype, chunksize, resumable)
-    #     return upload_result
-    
     def upload_dict(
         self, 
         data: Dict, 
@@ -344,5 +321,5 @@ class DriveFromServiceAcountFile(Drive):
     ):
         self.LOGGER.info("Building service...")
         kwargs['credentials'] = self.credentials
-        self.service = build('drive', version, *args, **kwargs)
+        self.set_service(build('drive', version, *args, **kwargs))
         self.LOGGER.info("Building service... Done!")
