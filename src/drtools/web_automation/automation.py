@@ -186,6 +186,10 @@ class GoogleDriveUploadResults:
             google_drive_base_folder_path = google_drive_base_folder_path[1:]
         self.base_folder_path = google_drive_base_folder_path # base folder path must exists on google drive
     
+    @property
+    def results_folder(self) -> str:
+        return f'{self.base_folder_path}/{self._automation.NAME}'
+    
     def set_credentials(self, filename: str) -> None:
         self.credentials_filename = filename
         
@@ -204,7 +208,7 @@ class GoogleDriveUploadResults:
         timestamp = int(datetime.now().timestamp())
         self.service.upload_dict(
             results, 
-            f'{self.base_folder_path}/{self._automation.NAME}/created_at={timestamp}&execution_id={execution_id}.json'
+            f'{self.google_drive_results_folder}/created_at={timestamp}&execution_id={execution_id}.json'
         )
         self._automation.LOGGER.info('Uploading to Google Drive... Done!')
     
