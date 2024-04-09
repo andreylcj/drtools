@@ -181,6 +181,7 @@ class WebDriverHandler:
         # password_input = wait_for_element(driver, EC.presence_of_element_located((By.XPATH, password_xpath)))
         password_input = self.driver.find_element(by=By.XPATH, value=password_xpath)
         # driver.execute_script(f"arguments[0].value = \"{password}\";", password_input)
+        password_input.clear()
         password_input.send_keys(password)
 
         # Find a visible input field preceding out password field and enter the specified username
@@ -189,6 +190,7 @@ class WebDriverHandler:
         username_xpath = "preceding::input[not(@type='hidden')][1]"
         username_input = password_input.find_element(by=By.XPATH, value=username_xpath)
         # driver.execute_script(f"arguments[0].value = \"{username}\";", username_input)
+        username_input.clear()
         username_input.send_keys(username)
 
         # Find the form element enclosing our password field

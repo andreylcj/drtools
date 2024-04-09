@@ -7,7 +7,7 @@ from selenium.webdriver.remote.webelement import WebElement
 import re
 from ..utils import get_url_info
 from ..automation import (
-    BaseAutomationProcessFromList
+    GoogleDriveAutomationProcessFromList
 )
 
 
@@ -276,7 +276,7 @@ class GenericGetEcommerceProductPossiblePricesFromEcommerceProductUrl(BaseGetEco
         return EcommerceProduct(possible_prices=unique_top_prices)
 
 
-class GenericGetEcommerceProductPossiblePricesFromEcommerceProductUrlList(BaseAutomationProcessFromList):
+class GenericGetEcommerceProductPossiblePricesFromEcommerceProductUrlList(GoogleDriveAutomationProcessFromList):
         
     def run(
         self, 
