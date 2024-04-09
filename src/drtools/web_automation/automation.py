@@ -208,7 +208,7 @@ class GoogleDriveUploadResults:
         timestamp = int(datetime.now().timestamp())
         self.service.upload_dict(
             results, 
-            f'{self.google_drive_results_folder}/created_at={timestamp}&execution_id={execution_id}.json'
+            f'{self.results_folder}/created_at={timestamp}&execution_id={execution_id}.json'
         )
         self._automation.LOGGER.info('Uploading to Google Drive... Done!')
     
