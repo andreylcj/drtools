@@ -4,6 +4,7 @@ from .driver_handler.handler import WebDriverHandler
 from .driver_handler.chrome import ChromeWebDriverHandler
 from typing import List, Any, Union, Tuple
 from drtools.logging import Logger, FormatterOptions
+from drtools.google.drive.drive import DriveFromServiceAcountFile
 import uuid
 from datetime import datetime
 import time
@@ -41,7 +42,7 @@ class BaseAutomationProcess:
     """
     
     NAME: str=None # Automation name. Must be unique. Mandatory
-    WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler]=ChromeWebDriverHandler # Web Driver Handler instance to be initiated on self.start_web_driver_handler()
+    WEB_DRIVER_HANDLER_CLASS: Union[ChromeWebDriverHandler] = ChromeWebDriverHandler # Web Driver Handler instance to be initiated on self.start_web_driver_handler()
     BOT_DETECTION_METHODS: List[BotDetection] = DEFAULT_BOT_DETECTION_METHODS
     BOT_DETECTION_MAX_RETRIES: int = DEFAULT_BOT_DETECTION_MAX_RETRIES
     BOT_DETECTION_RETRY_WAIT_TIME: int = DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME
@@ -92,11 +93,11 @@ class BaseAutomationProcess:
         kwargs['bot_detection_retry_wait_time'] = kwargs.get('bot_detection_retry_wait_time', self.BOT_DETECTION_RETRY_WAIT_TIME)
         kwargs['bot_detection_wait_for_presence_delay'] = kwargs.get('bot_detection_wait_for_presence_delay', self.BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY)
         self.web_driver_handler_start_kwargs = deepcopy(kwargs)
+        self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER, **kwargs)
         if driver:
             self.set_driver(driver)
         if LOGGER:
-            self.set_driver(LOGGER)
-        self.web_driver_handler = self.WEB_DRIVER_HANDLER_CLASS(driver, LOGGER, **kwargs)
+            self.set_logger(LOGGER)
     
     @property
     def web_driver_handler_start_args(self) -> Tuple:
@@ -165,6 +166,59 @@ class BaseAutomationProcess:
     
     def post_run(self, *args, **kwargs) -> Any:
         pass
+    
+
+class GoogleDriveUploadResults:
+    
+    def __init__(
+        self,
+        automation: BaseAutomationProcess,
+        google_drive_base_folder_path: str=None,
+    ) -> None:
+        self._automation = automation
+        self.credentials_filename = None
+        self.service = None
+        if not google_drive_base_folder_path:
+            if not self._automation.GOOGLE_DRIVE_BASE_FOLDER_PATH:
+                raise Exception("If google_drive_base_folder_path is not provided, GOOGLE_DRIVE_BASE_FOLDER_PATH must be set.")
+            google_drive_base_folder_path = self._automation.GOOGLE_DRIVE_BASE_FOLDER_PATH
+        if google_drive_base_folder_path.startswith('/'):
+            google_drive_base_folder_path = google_drive_base_folder_path[1:]
+        self.base_folder_path = google_drive_base_folder_path # base folder path must exists on google drive
+    
+    def set_credentials(self, filename: str) -> None:
+        self.credentials_filename = filename
+        
+    def start_service(self) -> None:
+        self.service = DriveFromServiceAcountFile(self.credentials_filename, LOGGER=self._automation.LOGGER)
+        self.service.build()
+        self.base_folder_id = self.service.get_folder_id_from_path(self.base_folder_path)
+        
+    def upload_to_google_drive(self):
+        self._automation.LOGGER.info('Uploading to Google Drive...')
+        results = self._automation.get_result()
+        execution_id = self._automation.get_execution_id()
+        # create folder if not exists
+        self.service.create_folder(self._automation.NAME, self.base_folder_id)
+        # upload result
+        timestamp = int(datetime.now().timestamp())
+        self.service.upload_dict(
+            results, 
+            f'{self.base_folder_path}/{self._automation.NAME}/created_at={timestamp}&execution_id={execution_id}.json'
+        )
+        self._automation.LOGGER.info('Uploading to Google Drive... Done!')
+    
+    
+class GoogleDriveAutomationProcess(BaseAutomationProcess):
+    
+    GOOGLE_DRIVE_BASE_FOLDER_PATH: str = None
+    
+    def __init__(self, *args, google_drive_base_folder_path: str=None, **kwargs) -> None:
+        super(GoogleDriveAutomationProcess, self).__init__(*args, **kwargs)
+        self.gdrive = GoogleDriveUploadResults(self, google_drive_base_folder_path)
+    
+    def post_run(self, *args, **kwargs) -> Any:
+        self.gdrive.upload_to_google_drive()
 
 
 class BaseAutomationProcessFromList(BaseAutomationProcess):
@@ -265,7 +319,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 raise exc
             error = str(exc)
             error_traceback = traceback.format_exc()
-            self.LOGGER.error(f'Error on {single_execution_id}: {error}')
+            self.LOGGER.error(f'[{single_execution_id}] Error: {error}')
             if self.verbose_traceback:
                 self.LOGGER.error(error_traceback)
             self.increment_automation_error_count()
@@ -389,6 +443,18 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     def run(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> Any:
         raise NotImplementedError
+    
+    
+class GoogleDriveAutomationProcessFromList(BaseAutomationProcessFromList):
+    
+    GOOGLE_DRIVE_BASE_FOLDER_PATH: str = None
+    
+    def __init__(self, *args, google_drive_base_folder_path: str=None, **kwargs) -> None:
+        super(GoogleDriveAutomationProcessFromList, self).__init__(*args, **kwargs)
+        self.gdrive = GoogleDriveUploadResults(self, google_drive_base_folder_path)
+    
+    def post_run(self, *args, **kwargs) -> Any:
+        self.gdrive.upload_to_google_drive()
     
 
 class ProxyAutomation(BaseAutomationProcessFromList):

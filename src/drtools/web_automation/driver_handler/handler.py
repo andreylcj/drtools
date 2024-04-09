@@ -46,11 +46,11 @@ class WebDriverHandler:
             )
         self.set_driver(driver)
         self.set_logger(LOGGER)
-        self.set_actions(ActionChains(self.get_driver()))
         self.bot_detection_methods = bot_detection_methods
         self.bot_detection_max_retries = bot_detection_max_retries
         self.bot_detection_retry_wait_time = bot_detection_retry_wait_time
         self.bot_detection_wait_for_presence_delay = bot_detection_wait_for_presence_delay
+        self.download_path = None
 
     def set_bot_detection_config(
         self,
@@ -70,6 +70,9 @@ class WebDriverHandler:
     def quit(self, *args, **kwargs) -> None:
         raise NotImplementedError
     
+    def set_download_path(self, download_path: str) -> None:
+        self.download_path = download_path
+    
     def set_logger(self, LOGGER: Logger) -> None:
         self.LOGGER = LOGGER
         
@@ -78,6 +81,7 @@ class WebDriverHandler:
     
     def set_driver(self, driver: WebDriver) -> None:
         self._driver = driver
+        self.set_actions(ActionChains(self.get_driver()))
         
     def add_bot_detection_method(self, bot_detection: BotDetection) -> None:
         if bot_detection not in self.bot_detection_methods:
