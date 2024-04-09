@@ -25,6 +25,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
         seleniumwire_options: Dict=None,
         executable_path: str=None,
         download_path: str=None,
+        language: str='en-US',
     ) -> None:
         """Start Selenium Wire Chrome Driver.
         
@@ -55,17 +56,22 @@ class ChromeWebDriverHandler(WebDriverHandler):
         # add options arguments
         has_window_size = False
         has_start_maximized = False
+        has_lang = False
         for arg in options_arguments:
             if 'window-size' in arg:
                 has_window_size = True
             if 'start-maximized' in arg:
                 has_start_maximized = True
+            if 'lang=' in arg:
+                has_lang = True 
             options.add_argument(arg)
         if not has_window_size:
             # TODO - Set random available window size
             options.add_argument('--window-size=1920x1080')
         if not has_start_maximized:
             options.add_argument('--start-maximized')
+        if not has_lang:
+            options.add_argument(f'--lang={language}')
 
         # Set chrome prefs
         chrome_prefs = {
