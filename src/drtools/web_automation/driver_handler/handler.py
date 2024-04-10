@@ -129,9 +129,13 @@ class WebDriverHandler:
         return_if_not_success: Any=None
     ):
         resp = return_if_not_success
+        tries = None
         for i in range(max_tries):
             try:
                 resp = func()
+                if tries is not None:
+                    tries = i + 1
+                    self.LOGGER.debug(f'Success after {tries:,} tries.')
                 return resp
             except Exception as exc:
                 resp = return_if_not_success
