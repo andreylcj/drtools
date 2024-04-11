@@ -938,12 +938,12 @@ def retry(
     raise_exception: bool=False,
     return_if_not_success: Any=None,
     LOGGER=None,
-    pre_retry: Callable=None,
-    pre_retry_args: Tuple=(),
-    pre_retry_kwargs: Dict={},
-    post_retry: Callable=None,
-    post_retry_args: Tuple=(),
-    post_retry_kwargs: Dict={},
+    pre_wait_retry: Callable=None,
+    pre_wait_retry_args: Tuple=(),
+    pre_wait_retry_kwargs: Dict={},
+    post_wait_retry: Callable=None,
+    post_wait_retry_args: Tuple=(),
+    post_wait_retry_kwargs: Dict={},
     func_args: Tuple=(),
     func_kwargs: Dict={},
     execution_id: str=None,
@@ -971,17 +971,17 @@ def retry(
             last_exception = exc
             error_message = str(last_exception).replace("\n", " <BR> ")
             _log(f'Tries: {tries:,} | Error: {error_message}')
-            if pre_retry:
+            if pre_wait_retry:
                 _log("Executing Pre Retry (before waiting)...")
-                pre_retry(last_exception, *pre_retry_args, **pre_retry_kwargs)
+                pre_wait_retry(last_exception, *pre_wait_retry_args, **pre_wait_retry_kwargs)
                 _log("Executing Pre Retry (before waiting)... Done!")
             if i + 1 != max_tries:
                 _log(f"Waiting for {wait_time:,}s to retry...")
                 time.sleep(wait_time)
                 _log(f"Waiting for {wait_time:,}s to retry... Done!")
-            if post_retry:
+            if post_wait_retry:
                 _log("Executing Post Retry (after waiting)...")
-                post_retry(last_exception, *post_retry_args, **post_retry_kwargs)
+                post_wait_retry(last_exception, *post_wait_retry_args, **post_wait_retry_kwargs)
                 _log("Executing Post Retry (after waiting)... Done!")
     if raise_exception:
         _log(f"Not success after {max_tries} tries", method="error")

@@ -324,12 +324,12 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 func=self.run,
                 func_args=(web_driver_handler, list_item, list_item_idx, *args),
                 func_kwargs=kwargs,
-                pre_retry=self.retry_pre_action,
-                pre_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
-                pre_retry_kwargs=kwargs,
-                post_retry=self.retry_post_action,
-                post_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
-                post_retry_kwargs=kwargs,
+                pre_wait_retry=self.retry_pre_wait_action,
+                pre_wait_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
+                pre_wait_retry_kwargs=kwargs,
+                post_wait_retry=self.retry_post_wait_action,
+                post_wait_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
+                post_wait_retry_kwargs=kwargs,
                 LOGGER=self.LOGGER,
                 raise_exception=True,
                 wait_time=self.retry_wait_time,
@@ -461,7 +461,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     #########################
     
-    def retry_pre_action(
+    def retry_pre_wait_action(
         self, 
         last_exception: Exception, 
         web_driver_handler: WebDriverHandler, 
@@ -472,7 +472,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     ) -> Any:
         pass
     
-    def retry_post_action(
+    def retry_post_wait_action(
         self, 
         last_exception: Exception, 
         web_driver_handler: WebDriverHandler, 
