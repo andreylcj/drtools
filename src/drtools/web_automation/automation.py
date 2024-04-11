@@ -345,7 +345,9 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         speed = total_time / processed_items_num
         remaining_time = (total - processed_items_num) * speed
         remaining_time_msg = display_time(int(remaining_time))
-        self.LOGGER.debug(f"({processed_items_num:,}/{total:,}) Complete! Expected remaining time: {remaining_time_msg}...")
+        success_count = self.get_automation_success_count()
+        error_count = self.get_automation_error_count()
+        self.LOGGER.debug(f"(C: {processed_items_num:,} | T: {total:,} | S: {success_count:,} | E: {error_count:,}) Complete! Expected remaining time: {remaining_time_msg}...")
         if self.bulk_size:
             processed_items_num = self.get_web_driver_handler_execution_count(web_driver_handler)
             if processed_items_num % self.bulk_size == 0:

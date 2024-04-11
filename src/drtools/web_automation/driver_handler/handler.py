@@ -1,6 +1,6 @@
 
 
-from typing import List, Any, Callable
+from typing import List, Any, Callable, Tuple
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -126,25 +126,28 @@ class WebDriverHandler:
         max_tries=5,
         wait_time: float=1,
         raise_exception: bool=False,
-        return_if_not_success: Any=None
-    ):
+        return_if_not_success: Any=None,
+    ) -> Tuple:
         resp = return_if_not_success
         tries = None
+        last_exception = None
         for i in range(max_tries):
             try:
                 resp = func()
                 if tries is not None:
                     tries = i + 1
                     self.LOGGER.debug(f'Success after {tries:,} tries.')
-                return resp
+                return resp, last_exception
             except Exception as exc:
                 resp = return_if_not_success
                 tries = i + 1
-                self.LOGGER.debug(f'Tries: {tries:,} | Error: {str(exc)}')
-                time.sleep(wait_time) 
+                last_exception = exc
+                self.LOGGER.debug(f'Tries: {tries:,} | Error: {str(last_exception)}')
+                if i + 1 != max_tries:
+                    time.sleep(wait_time)
         if raise_exception:
             raise Exception(f"Not success after {max_tries} tries")
-        return resp
+        return resp, last_exception
 
     def find_then_click(
         self,
@@ -454,10 +457,11 @@ class WebDriverHandler:
         parent_shadow_by: By=By.XPATH,
         raise_exception: bool=False,
         js: bool=False,
-        wait_for_el: bool=True
+        wait_for_el: bool=True,
+        wait_time: int=5,
     ) -> None:
         if wait_for_el:
-            element = self.wait_for_element_presence_located_by_xpath(parent_shadow_query)
+            element = self.wait_for_element_presence_located_by_xpath(parent_shadow_query, wait_time)
             element = self.find_element_on_shadow_root(
                 parent_shadow_query,
                 query, 
@@ -552,9 +556,10 @@ class WebDriverHandler:
     def click(
         self,
         element: WebElement, 
-        js: bool=True, 
-        retry: int=5, 
-        js_when_exaust: bool=True
+        js: bool=False, 
+        max_tries: int=2, 
+        js_when_exaust: bool=True,
+        wait_time: int=1,
     ) -> None:
         """Click action with error handler
 
@@ -577,22 +582,19 @@ class WebDriverHandler:
         Exception
             When click action can not be sucessfuly executed.
         """
-            
-        retry_count = 0
-        while retry_count < retry:
-            try:
-                self.perform_click(element, js)
-                retry_count = float('inf')
-            except Exception as exc:
-                retry_count = retry_count + 1
-                msg = exc
-                self.LOGGER.debug(f'retry count: {retry_count}')
-                self.LOGGER.debug(msg)
-        if retry_count != float('inf'):
-            if js_when_exaust and self.driver is not None:
+        success, last_exception = self.retry(
+            func=lambda: self.perform_click(element, js=js),
+            max_tries=max_tries,
+            wait_time=wait_time,
+            return_if_not_success=False
+        )
+        if success is False:
+            if js_when_exaust \
+            and self.driver is not None \
+            and not js:
                 self.perform_click(element, js=True)
             else:
-                raise Exception(msg)
+                raise last_exception
             
     def set_input_range_value(
         self,
