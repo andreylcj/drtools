@@ -972,17 +972,17 @@ def retry(
             error_message = str(last_exception).replace("\n", " <BR> ")
             _log(f'Tries: {tries:,} | Error: {error_message}')
             if pre_wait_retry:
-                _log("Executing Pre Retry (before waiting)...")
+                _log("Executing pre retry waiting action...")
                 pre_wait_retry(last_exception, *pre_wait_retry_args, **pre_wait_retry_kwargs)
-                _log("Executing Pre Retry (before waiting)... Done!")
+                _log("Executing pre retry waiting action... Done!")
             if i + 1 != max_tries:
                 _log(f"Waiting for {wait_time:,}s to retry...")
                 time.sleep(wait_time)
                 _log(f"Waiting for {wait_time:,}s to retry... Done!")
             if post_wait_retry:
-                _log("Executing Post Retry (after waiting)...")
+                _log("Executing post retry waiting action...")
                 post_wait_retry(last_exception, *post_wait_retry_args, **post_wait_retry_kwargs)
-                _log("Executing Post Retry (after waiting)... Done!")
+                _log("Executing post retry waiting action... Done!")
     if raise_exception:
         _log(f"Not success after {max_tries} tries", method="error")
         raise last_exception
