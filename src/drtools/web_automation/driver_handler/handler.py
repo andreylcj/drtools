@@ -162,7 +162,7 @@ class WebDriverHandler:
             element = self.wait_for_element_presence_located_by_xpath(query)
         else:
             element = self.find_element(query, reference_el, by, raise_exception)
-        self.perform_click(element, js)
+        self.click(element, js)
 
     def auto_login(
         self,
@@ -479,7 +479,7 @@ class WebDriverHandler:
                 parent_shadow_by,
                 raise_exception
             )
-        self.perform_click(element, js)
+        self.click(element, js)
     
     def find_elements(
         self,
