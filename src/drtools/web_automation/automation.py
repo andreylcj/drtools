@@ -320,8 +320,6 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         item_started_at = datetime.now()
         web_driver_handler = self.pop_web_driver_handler()
         try:
-            # list_item_result: Any = self.run(web_driver_handler, list_item, list_item_idx, *args, **kwargs)
-            # retry option
             list_item_result, last_exception = retry(
                 func=self.run,
                 func_args=(web_driver_handler, list_item, list_item_idx, *args),
@@ -336,7 +334,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 raise_exception=True,
                 wait_time=self.retry_wait_time,
                 max_tries=self.worker_max_tries,
-                execution_id=single_execution_id,
+                execution_id=f'AutomationWokerID:{single_execution_id}',
             )
             self.increment_automation_success_count()
             self.increment_web_driver_handler_success_count(web_driver_handler)

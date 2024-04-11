@@ -421,7 +421,8 @@ class WebDriverHandler:
             else:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
-            self.LOGGER.warning(exc.msg)
+            exc_msg = str(exc.msg)
+            self.LOGGER.warning(exc_msg.replace("\n", " <BR> "))
             if raise_exception:
                 raise exc
             result = None
@@ -512,7 +513,8 @@ class WebDriverHandler:
             else:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
-            self.LOGGER.warning(exc.msg)
+            exc_msg = str(exc.msg)
+            self.LOGGER.warning(exc_msg.replace("\n", " <BR> "))
             result = None
         return result
     

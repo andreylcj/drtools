@@ -952,7 +952,7 @@ def retry(
     tries = None
     last_exception = None
     execution_id = execution_id or str(uuid.uuid4())
-    def _log(message, method: str=None):
+    def _log(message, method: str="debug"):
         _message = f'[RetryID:{execution_id}] {message}'
         if LOGGER:
             getattr(LOGGER, method)(_message)
@@ -963,17 +963,20 @@ def retry(
             resp = func(*func_args, **func_kwargs)
             if tries is not None:
                 tries = i + 1
-                _log(f'Success after {tries:,} tries.', method="debug")
+                _log(f'Success after {tries:,} tries.')
             return resp, last_exception
         except Exception as exc:
             resp = return_if_not_success
             tries = i + 1
             last_exception = exc
-            _log(f'Tries: {tries:,} | Error: {str(last_exception)}', method="debug")
+            error_message = str(last_exception).replace("\n", " <BR> ")
+            _log(f'Tries: {tries:,} | Error: {error_message}')
             if pre_retry:
                 pre_retry(last_exception, *pre_retry_args, **pre_retry_kwargs)
             if i + 1 != max_tries:
+                _log(f"Waiting for {wait_time:,}s...")
                 time.sleep(wait_time)
+                _log(f"Waiting for {wait_time:,}s... Done!")
             if post_retry:
                 post_retry(last_exception, *post_retry_args, **post_retry_kwargs)
     if raise_exception:
