@@ -373,10 +373,13 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 self.LOGGER.debug('Waiting pre action...')
                 self.wait_pre_action()
                 self.LOGGER.debug('Waiting pre action... Done!')
-                if self.wait_time:
-                    self.LOGGER.debug(f'Waiting for {self.wait_time:,}s...')
-                    time.sleep(self.wait_time)
-                    self.LOGGER.debug(f'Waiting for {self.wait_time:,}s... Done!')
+        if self.wait_time:
+            self.LOGGER.debug(f'Waiting for {self.wait_time:,}s...')
+            time.sleep(self.wait_time)
+            self.LOGGER.debug(f'Waiting for {self.wait_time:,}s... Done!')
+        if self.bulk_size:
+            processed_items_num = self.get_web_driver_handler_execution_count(web_driver_handler)
+            if processed_items_num % self.bulk_size == 0:
                 self.LOGGER.debug('Waiting post action...')
                 self.wait_post_action()
                 self.LOGGER.debug('Waiting post action... Done!')
