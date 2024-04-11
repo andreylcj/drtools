@@ -23,6 +23,7 @@ from .config import (
     DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
     DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
 )
+from drtools.utils import retry
 
 
 class WebDriverHandler:
@@ -128,26 +129,14 @@ class WebDriverHandler:
         raise_exception: bool=False,
         return_if_not_success: Any=None,
     ) -> Tuple:
-        resp = return_if_not_success
-        tries = None
-        last_exception = None
-        for i in range(max_tries):
-            try:
-                resp = func()
-                if tries is not None:
-                    tries = i + 1
-                    self.LOGGER.debug(f'Success after {tries:,} tries.')
-                return resp, last_exception
-            except Exception as exc:
-                resp = return_if_not_success
-                tries = i + 1
-                last_exception = exc
-                self.LOGGER.debug(f'Tries: {tries:,} | Error: {str(last_exception)}')
-                if i + 1 != max_tries:
-                    time.sleep(wait_time)
-        if raise_exception:
-            raise Exception(f"Not success after {max_tries} tries")
-        return resp, last_exception
+        return retry(
+            func=func,
+            max_tries=max_tries,
+            wait_time=wait_time,
+            raise_exception=raise_exception,
+            return_if_not_success=return_if_not_success,
+            LOGGER=self.LOGGER
+        )
 
     def find_then_click(
         self,
@@ -156,13 +145,16 @@ class WebDriverHandler:
         by: By=By.XPATH,
         raise_exception: bool=False,
         js: bool=False,
-        wait_for_el: bool=True
-    ) -> None:
+        wait_for_el: bool=False,
+        wait_time: int=5,
+    ) -> WebElement:
         if wait_for_el:
-            element = self.wait_for_element_presence_located_by_xpath(query)
+            element = self.wait_for_element_presence_located_by_xpath(query, wait_time, raise_exception)
         else:
             element = self.find_element(query, reference_el, by, raise_exception)
-        self.click(element, js)
+        if element:
+            self.click(element, js)
+            return element
 
     def auto_login(
         self,
@@ -457,7 +449,7 @@ class WebDriverHandler:
         parent_shadow_by: By=By.XPATH,
         raise_exception: bool=False,
         js: bool=False,
-        wait_for_el: bool=True,
+        wait_for_el: bool=False,
         wait_time: int=5,
     ) -> None:
         if wait_for_el:

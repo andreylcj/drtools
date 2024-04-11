@@ -21,6 +21,8 @@ from typing import (
 import math
 from enum import Enum
 from copy import deepcopy
+import time
+import uuid
 
 
 def progress(
@@ -927,3 +929,54 @@ class ExpectedRemainingTimeHandle:
 
     def display_time(self, executed_num: int, granularity: int=2) -> str:
         return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
+    
+
+def retry(
+    func, 
+    max_tries=5,
+    wait_time: float=1,
+    raise_exception: bool=False,
+    return_if_not_success: Any=None,
+    LOGGER=None,
+    pre_retry: Callable=None,
+    pre_retry_args: Tuple=(),
+    pre_retry_kwargs: Dict={},
+    post_retry: Callable=None,
+    post_retry_args: Tuple=(),
+    post_retry_kwargs: Dict={},
+    func_args: Tuple=(),
+    func_kwargs: Dict={},
+    execution_id: str=None,
+) -> Tuple:
+    resp = return_if_not_success
+    tries = None
+    last_exception = None
+    execution_id = execution_id or str(uuid.uuid4())
+    def _log(message, method: str=None):
+        _message = f'[RetryID:{execution_id}] {message}'
+        if LOGGER:
+            getattr(LOGGER, method)(_message)
+        else:
+            print(f'[{method.upper()}] {_message}')
+    for i in range(max_tries):
+        try:
+            resp = func(*func_args, **func_kwargs)
+            if tries is not None:
+                tries = i + 1
+                _log(f'Success after {tries:,} tries.', method="debug")
+            return resp, last_exception
+        except Exception as exc:
+            resp = return_if_not_success
+            tries = i + 1
+            last_exception = exc
+            _log(f'Tries: {tries:,} | Error: {str(last_exception)}', method="debug")
+            if pre_retry:
+                pre_retry(last_exception, *pre_retry_args, **pre_retry_kwargs)
+            if i + 1 != max_tries:
+                time.sleep(wait_time)
+            if post_retry:
+                post_retry(last_exception, *post_retry_args, **post_retry_kwargs)
+    if raise_exception:
+        _log(f"Not success after {max_tries} tries", method="error")
+        raise last_exception
+    return resp, last_exception

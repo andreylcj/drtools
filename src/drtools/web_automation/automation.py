@@ -8,7 +8,7 @@ from drtools.google.drive.drive import DriveFromServiceAcountFile
 import uuid
 from datetime import datetime
 import time
-from drtools.utils import display_time
+from drtools.utils import display_time, retry
 import traceback
 from selenium.webdriver.remote.webdriver import WebDriver
 import random
@@ -240,6 +240,8 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         wait_time: int=None,
         verbose_traceback: bool=False,
         max_workers: int=1,
+        worker_max_tries: int=1,
+        retry_wait_time: int=5,
     ) -> None:
         super(BaseAutomationProcessFromList, self).__init__(None, LOGGER, start, quit)
         self.raise_exception = raise_exception
@@ -247,6 +249,8 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self.wait_time = wait_time
         self.verbose_traceback = verbose_traceback
         self.max_workers = max_workers
+        self.worker_max_tries = worker_max_tries
+        self.retry_wait_time = retry_wait_time
         self._web_driver_handlers = []
         self._lock = Lock()
         self._success_executions_by_handler = {} # web_driver_handler -> execution_count
@@ -316,7 +320,24 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         item_started_at = datetime.now()
         web_driver_handler = self.pop_web_driver_handler()
         try:
-            list_item_result: Any = self.run(web_driver_handler, list_item, list_item_idx, *args, **kwargs)
+            # list_item_result: Any = self.run(web_driver_handler, list_item, list_item_idx, *args, **kwargs)
+            # retry option
+            list_item_result, last_exception = retry(
+                func=self.run,
+                func_args=(web_driver_handler, list_item, list_item_idx, *args),
+                func_kwargs=kwargs,
+                pre_retry=self.retry_pre_action,
+                pre_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
+                pre_retry_kwargs=kwargs,
+                post_retry=self.retry_post_action,
+                post_retry_args=(web_driver_handler, list_item, list_item_idx, *args),
+                post_retry_kwargs=kwargs,
+                LOGGER=self.LOGGER,
+                raise_exception=True,
+                wait_time=self.retry_wait_time,
+                max_tries=self.worker_max_tries,
+                execution_id=single_execution_id,
+            )
             self.increment_automation_success_count()
             self.increment_web_driver_handler_success_count(web_driver_handler)
         except Exception as exc:
@@ -362,12 +383,6 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 self.wait_post_action()
                 self.LOGGER.debug('Waiting post action... Done!')
         self.handle_web_driver_handler_after_run(web_driver_handler)
-    
-    def wait_pre_action(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> None:
-        pass
-    
-    def wait_post_action(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> None:
-        pass
     
     #########################
     
@@ -447,6 +462,48 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         return automation_result['success_count'] + automation_result['error_count']
     
     #########################
+    
+    def retry_pre_action(
+        self, 
+        last_exception: Exception, 
+        web_driver_handler: WebDriverHandler, 
+        list_item: Any, 
+        list_item_idx: int, 
+        *args, 
+        **kwargs
+    ) -> Any:
+        pass
+    
+    def retry_post_action(
+        self, 
+        last_exception: Exception, 
+        web_driver_handler: WebDriverHandler, 
+        list_item: Any, 
+        list_item_idx: int, 
+        *args, 
+        **kwargs
+    ) -> Any:
+        pass
+    
+    def wait_pre_action(
+        self, 
+        web_driver_handler: WebDriverHandler, 
+        list_item: Any, 
+        list_item_idx: int, 
+        *args, 
+        **kwargs
+    ) -> Any:
+        pass
+    
+    def wait_post_action(
+        self, 
+        web_driver_handler: WebDriverHandler, 
+        list_item: Any, 
+        list_item_idx: int, 
+        *args, 
+        **kwargs
+    ) -> Any:
+        pass
     
     def run(self, web_driver_handler: WebDriverHandler, list_item: Any, list_item_idx: int, *args, **kwargs) -> Any:
         raise NotImplementedError
