@@ -23,7 +23,7 @@ from .config import (
     DEFAULT_BOT_DETECTION_RETRY_WAIT_TIME,
     DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
 )
-from drtools.utils import retry
+from drtools.utils import retry, remove_break_line
 
 
 class WebDriverHandler:
@@ -422,7 +422,7 @@ class WebDriverHandler:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
             exc_msg = str(exc.msg)
-            self.LOGGER.warning(exc_msg.replace("\n", " <BR> "))
+            self.LOGGER.warning(remove_break_line(exc_msg))
             if raise_exception:
                 raise exc
             result = None
@@ -514,7 +514,7 @@ class WebDriverHandler:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
             exc_msg = str(exc.msg)
-            self.LOGGER.warning(exc_msg.replace("\n", " <BR> "))
+            self.LOGGER.warning(remove_break_line(exc_msg))
             result = None
         return result
     

@@ -241,7 +241,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         verbose_traceback: bool=False,
         max_workers: int=1,
         worker_max_tries: int=3,
-        retry_wait_time: int=60,
+        retry_wait_time: int=30,
     ) -> None:
         super(BaseAutomationProcessFromList, self).__init__(None, LOGGER, start, quit)
         self.raise_exception = raise_exception

@@ -931,6 +931,12 @@ class ExpectedRemainingTimeHandle:
         return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
     
 
+def remove_break_line(text: str, replace_txt: str=" <BR> "):
+    if text.endswith("\n"):
+        text = text[:-2]
+    text = text.replace("\n", replace_txt)
+
+
 def retry(
     func, 
     max_tries=5,
@@ -969,7 +975,7 @@ def retry(
             resp = return_if_not_success
             tries = i + 1
             last_exception = exc
-            error_message = str(last_exception).replace("\n", " <BR> ")
+            error_message = remove_break_line(str(last_exception))
             _log(f'Tries: {tries:,} | Error: {error_message}')
             if pre_wait_retry:
                 _log("Executing pre retry waiting action...")
