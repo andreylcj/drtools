@@ -218,12 +218,20 @@ class GoogleDriveAutomationProcess(BaseAutomationProcess):
     
     GOOGLE_DRIVE_BASE_FOLDER_PATH: str = None
     
-    def __init__(self, *args, google_drive_base_folder_path: str=None, **kwargs) -> None:
+    def __init__(
+        self, 
+        *args, 
+        google_drive_base_folder_path: str=None, 
+        ignore_google_drive_savement: bool=False,
+        **kwargs
+    ) -> None:
         super(GoogleDriveAutomationProcess, self).__init__(*args, **kwargs)
         self.gdrive = GoogleDriveUploadResults(self, google_drive_base_folder_path)
+        self._ignore_google_drive_savement = ignore_google_drive_savement
     
     def post_run(self, *args, **kwargs) -> Any:
-        self.gdrive.upload_to_google_drive()
+        if not self._ignore_google_drive_savement:
+            self.gdrive.upload_to_google_drive()
 
 
 class BaseAutomationProcessFromList(BaseAutomationProcess):
@@ -545,12 +553,20 @@ class GoogleDriveAutomationProcessFromList(BaseAutomationProcessFromList):
     
     GOOGLE_DRIVE_BASE_FOLDER_PATH: str = None
     
-    def __init__(self, *args, google_drive_base_folder_path: str=None, **kwargs) -> None:
-        super(GoogleDriveAutomationProcessFromList, self).__init__(*args, **kwargs)
+    def __init__(
+        self, 
+        *args, 
+        google_drive_base_folder_path: str=None, 
+        ignore_google_drive_savement: bool=False,
+        **kwargs
+    ) -> None:
+        super(GoogleDriveAutomationProcess, self).__init__(*args, **kwargs)
         self.gdrive = GoogleDriveUploadResults(self, google_drive_base_folder_path)
+        self._ignore_google_drive_savement = ignore_google_drive_savement
     
     def post_run(self, *args, **kwargs) -> Any:
-        self.gdrive.upload_to_google_drive()
+        if not self._ignore_google_drive_savement:
+            self.gdrive.upload_to_google_drive()
     
 
 class ProxyAutomation(BaseAutomationProcessFromList):

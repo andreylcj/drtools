@@ -145,9 +145,11 @@ class WebDriverHandler:
         by: By=By.XPATH,
         raise_exception: bool=False,
         js: bool=False,
-        wait_for_el: bool=False,
+        wait_for_el: bool=None,
         wait_time: int=5,
     ) -> WebElement:
+        if wait_for_el is None:
+            wait_for_el = reference_el is None
         if wait_for_el:
             element = self.wait_for_element_presence_located_by_xpath(query, wait_time, raise_exception)
         else:
