@@ -8,7 +8,7 @@ from drtools.google.drive.drive import DriveFromServiceAcountFile
 import uuid
 from datetime import datetime
 import time
-from drtools.utils import display_time, retry
+from drtools.utils import display_time, retry, remove_break_line
 import traceback
 from selenium.webdriver.remote.webdriver import WebDriver
 import random
@@ -333,6 +333,9 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     
     def run_middleware(self, worker: Worker) -> None:
         single_execution_id = self.get_unique_id()
+        single_execution_id_label = f'AutomationWokerID:{single_execution_id}'
+        def _msg_id(msg: str):
+            return f'[{single_execution_id_label}] {remove_break_line(str(msg))}'
         list_item = worker['list_item']
         list_item_cp = deepcopy(list_item)
         list_item_idx = worker['list_item_idx']
@@ -360,7 +363,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 raise_exception=True,
                 wait_time=self.retry_wait_time,
                 max_tries=self.worker_max_tries,
-                execution_id=f'AutomationWokerID:{single_execution_id}',
+                execution_id=single_execution_id_label,
             )
             self.increment_automation_success_count()
             self.increment_web_driver_handler_success_count(web_driver_handler)
@@ -369,9 +372,9 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 raise exc
             error = str(exc)
             error_traceback = traceback.format_exc()
-            self.LOGGER.error(f'[{single_execution_id}] Error: {error}')
+            self.LOGGER.error(_msg_id(f'Error: {error}'))
             if self.verbose_traceback:
-                self.LOGGER.error(error_traceback)
+                self.LOGGER.error(_msg_id(error_traceback))
             self.increment_automation_error_count()
             self.increment_web_driver_handler_error_count(web_driver_handler)
         self.append_automation_result(
@@ -392,23 +395,25 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         remaining_time_msg = display_time(int(remaining_time))
         success_count = self.get_automation_success_count()
         error_count = self.get_automation_error_count()
-        self.LOGGER.debug(f"(C: {processed_items_num:,} | T: {total:,} | S: {success_count:,} | E: {error_count:,}) Complete! Expected remaining time: {remaining_time_msg}...")
+        self.LOGGER.debug(_msg_id(
+            f"(C: {processed_items_num:,} | T: {total:,} | S: {success_count:,} | E: {error_count:,}) Complete! Expected remaining time: {remaining_time_msg}..."
+        ))
         if self.bulk_size:
             processed_items_num = self.get_web_driver_handler_execution_count(web_driver_handler)
             if processed_items_num % self.bulk_size == 0:
-                self.LOGGER.debug('Waiting pre action...')
+                self.LOGGER.debug(_msg_id(f'Waiting pre action...'))
                 self.wait_pre_action()
-                self.LOGGER.debug('Waiting pre action... Done!')
+                self.LOGGER.debug(_msg_id(f'Waiting pre action... Done!'))
         if self.wait_time:
-            self.LOGGER.debug(f'Waiting for {self.wait_time:,}s...')
+            self.LOGGER.debug(_msg_id(f'Waiting for {self.wait_time:,}s...'))
             time.sleep(self.wait_time)
-            self.LOGGER.debug(f'Waiting for {self.wait_time:,}s... Done!')
+            self.LOGGER.debug(_msg_id(f'Waiting for {self.wait_time:,}s... Done!'))
         if self.bulk_size:
             processed_items_num = self.get_web_driver_handler_execution_count(web_driver_handler)
             if processed_items_num % self.bulk_size == 0:
-                self.LOGGER.debug('Waiting post action...')
+                self.LOGGER.debug(_msg_id(f'Waiting post action...'))
                 self.wait_post_action()
-                self.LOGGER.debug('Waiting post action... Done!')
+                self.LOGGER.debug(_msg_id(f'Waiting post action... Done!'))
         self.handle_web_driver_handler_after_run(web_driver_handler)
     
     #########################
