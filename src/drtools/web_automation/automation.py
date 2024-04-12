@@ -294,11 +294,37 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         return self.get_automation_result()
     
     def process_list_items(self, list_items: List[Any], started_at: datetime, total: int, *args, **kwargs) -> None:
+        if self.max_workers == 1:
+            return self.sequential_list_processing(list_items, started_at, total, *args, **kwargs)
+        else:
+            return self.threading_list_processing(list_items, started_at, total, *args, **kwargs)
+    
+    def sequential_list_processing(self, list_items: List[Any], started_at: datetime, total: int, *args, **kwargs) -> None:
+        for list_item_idx, list_item in enumerate(list_items):
+            self.run_middleware(
+                Worker(
+                    list_item=list_item, 
+                    list_item_idx=list_item_idx, 
+                    started_at=started_at, 
+                    total=total, 
+                    args=args, 
+                    kwargs=kwargs
+                )
+            )
+    
+    def threading_list_processing(self, list_items: List[Any], started_at: datetime, total: int, *args, **kwargs) -> None:
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
                 executor.submit(
                     self.run_middleware,
-                    Worker(list_item=list_item, list_item_idx=list_item_idx, started_at=started_at, total=total, args=args, kwargs=kwargs)
+                    Worker(
+                        list_item=list_item, 
+                        list_item_idx=list_item_idx, 
+                        started_at=started_at, 
+                        total=total, 
+                        args=args, 
+                        kwargs=kwargs
+                    )
                 ): list_item
                 for list_item_idx, list_item in enumerate(list_items)
             }

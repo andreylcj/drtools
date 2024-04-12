@@ -935,6 +935,7 @@ def remove_break_line(text: str, replace_txt: str=" <BR> "):
     if text.endswith("\n"):
         text = text[:-2]
     text = text.replace("\n", replace_txt)
+    return text
 
 
 def retry(
