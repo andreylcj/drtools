@@ -193,7 +193,7 @@ class Drive:
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            self.LOGGER.debug(f"Download {int(status.progress() * 100)}%.")
+            self.LOGGER.debug(f"[GoogleDrive:FileID:{file_id}] Download {int(status.progress() * 100)}%.")
         value = fh.getvalue()
         if try_handle_mimetype:
             value = self.handle_bytes_from_mimetype(value, mimetype)

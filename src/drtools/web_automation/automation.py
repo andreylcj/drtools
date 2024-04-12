@@ -560,7 +560,7 @@ class GoogleDriveAutomationProcessFromList(BaseAutomationProcessFromList):
         ignore_google_drive_savement: bool=False,
         **kwargs
     ) -> None:
-        super(GoogleDriveAutomationProcess, self).__init__(*args, **kwargs)
+        super(GoogleDriveAutomationProcessFromList, self).__init__(*args, **kwargs)
         self.gdrive = GoogleDriveUploadResults(self, google_drive_base_folder_path)
         self._ignore_google_drive_savement = ignore_google_drive_savement
     
