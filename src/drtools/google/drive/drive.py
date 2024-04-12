@@ -24,6 +24,10 @@ from typing import Callable
 import json
 
 
+DEFAULTS_FIELDS: str = "nextPageToken, files(id, name, kind, mimeType, createdTime, modifiedTime)"
+DEFAULT_ORDER_BY: str = "modifiedTime desc"
+
+
 class Drive:
     
     SCOPES: List[str] = ['https://www.googleapis.com/auth/drive']
@@ -57,14 +61,20 @@ class Drive:
         self,
         name: str, 
         page_size: int=10,
-        fields: str="nextPageToken, files(id, name, kind, mimeType)",
-        parent_folder_id: str=None
+        fields: str=DEFAULTS_FIELDS,
+        parent_folder_id: str=None,
+        order_by: str=DEFAULT_ORDER_BY
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         q = f"mimeType='application/vnd.google-apps.folder' and name='{name}'"
         if parent_folder_id:
             q += f" and '{parent_folder_id}' in parents"
-        results = self.service.files().list(q=q, pageSize=page_size, fields=fields).execute()
+        results = self.service.files().list(
+            q=q, 
+            pageSize=page_size, 
+            fields=fields,
+            orderBy=order_by,
+        ).execute()
         return results
     
     def get_folder_content(
@@ -72,13 +82,19 @@ class Drive:
         folder_id, 
         page_size: int=1000, 
         trashed: bool=False, 
-        fields: str="nextPageToken, files(id, name, kind, mimeType)",
+        fields: str=DEFAULTS_FIELDS,
         deep: bool=False,
+        order_by: str=DEFAULT_ORDER_BY,
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         def _get_folder_content(folder_id, page_size, trashed):
             trashed = 'true' if trashed else 'false'
-            results = self.service.files().list(q=f"'{folder_id}' in parents and trashed={trashed}", pageSize=page_size, fields=fields).execute()
+            results = self.service.files().list(
+                q=f"'{folder_id}' in parents and trashed={trashed}", 
+                pageSize=page_size, 
+                fields=fields,
+                orderBy=order_by,
+            ).execute()
             items = results
             return items
         items = _get_folder_content(folder_id, page_size, trashed)
@@ -115,12 +131,13 @@ class Drive:
         path: str, 
         page_size: int=1000, 
         trashed: bool=False, 
-        fields: str="nextPageToken, files(id, name, kind, mimeType)",
+        fields: str=DEFAULTS_FIELDS,
         deep: bool=False,
+        order_by: str=DEFAULT_ORDER_BY,
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         folder_id = self.get_folder_id_from_path(path)
-        return self.get_folder_content(folder_id, page_size, trashed, fields, deep)
+        return self.get_folder_content(folder_id, page_size, trashed, fields, deep, order_by)
     
     def create_folder(
         self,
@@ -213,6 +230,13 @@ class Drive:
             raise Exception(f"No file found with path: {filepath}")
         file_id = file_item[0]['id']
         return self.get_file_content(file_id, try_handle_mimetype, file_item[0]['mimeType'])
+    
+    def get_last_modified_file_content_from_folder(self, folder_path: str, mimetype: str=None):
+        folder_content = self.get_folder_content_from_path(folder_path, page_size=1)
+        file_id = folder_content['files'][0]['id']
+        mimetype = folder_content['files'][0]['mimeType']
+        data = self.get_file_content(file_id, mimetype=mimetype)
+        return data
     
     def create_file(
         self,
