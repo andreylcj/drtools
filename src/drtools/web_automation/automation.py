@@ -386,7 +386,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
             error_traceback = traceback.format_exc()
             self.LOGGER.error(_msg_id(f'Error: {error}'))
             if self.verbose_traceback:
-                self.LOGGER.error(_msg_id(error_traceback), remove_bk=False)
+                self.LOGGER.error(_msg_id(error_traceback, remove_bk=False))
             self.increment_automation_error_count()
             self.increment_web_driver_handler_error_count(web_driver_handler)
         self.append_automation_result(

@@ -955,7 +955,9 @@ def retry(
     func_args: Tuple=(),
     func_kwargs: Dict={},
     execution_id: str=None,
-    verbose_traceback: bool=False
+    verbose_traceback: bool=False,
+    expected: Any=True,
+    compare_response_with_expected: bool=False,
 ) -> Tuple:
     resp = return_if_not_success
     tries = None
@@ -970,6 +972,9 @@ def retry(
     for i in range(max_tries):
         try:
             resp = func(*func_args, **func_kwargs)
+            if compare_response_with_expected:
+                if expected != resp:
+                    raise Exception(f"Response different from expected. Response: {resp} | Expected: {expected}")
             if tries is not None:
                 tries = i + 1
                 _log(f'Success after {tries:,} tries.')
