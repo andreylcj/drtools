@@ -23,6 +23,7 @@ from enum import Enum
 from copy import deepcopy
 import time
 import uuid
+import traceback
 
 
 def progress(
@@ -954,6 +955,7 @@ def retry(
     func_args: Tuple=(),
     func_kwargs: Dict={},
     execution_id: str=None,
+    verbose_traceback: bool=False
 ) -> Tuple:
     resp = return_if_not_success
     tries = None
@@ -977,7 +979,10 @@ def retry(
             tries = i + 1
             last_exception = exc
             error_message = remove_break_line(str(last_exception))
+            error_traceback = traceback.format_exc()
             _log(f'Tries: {tries:,} | Error: {error_message}')
+            if verbose_traceback:
+                _log(str(error_traceback))
             if pre_wait_retry:
                 _log("Executing pre retry waiting action...")
                 pre_wait_retry(last_exception, *pre_wait_retry_args, **pre_wait_retry_kwargs)

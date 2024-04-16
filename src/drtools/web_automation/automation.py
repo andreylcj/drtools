@@ -342,8 +342,11 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
     def run_middleware(self, worker: Worker) -> None:
         single_execution_id = self.get_unique_id()
         single_execution_id_label = f'AutomationWokerID:{single_execution_id}'
-        def _msg_id(msg: str):
-            return f'[{single_execution_id_label}] {remove_break_line(str(msg))}'
+        def _msg_id(msg: str, remove_bk: bool=True):
+            _msg = msg
+            if remove_bk:
+                _msg = remove_break_line(str(_msg))
+            return f'[{single_execution_id_label}] {_msg}'
         list_item = worker['list_item']
         list_item_cp = deepcopy(list_item)
         list_item_idx = worker['list_item_idx']
@@ -372,6 +375,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
                 wait_time=self.retry_wait_time,
                 max_tries=self.worker_max_tries,
                 execution_id=single_execution_id_label,
+                verbose_traceback=self.verbose_traceback,
             )
             self.increment_automation_success_count()
             self.increment_web_driver_handler_success_count(web_driver_handler)
@@ -382,7 +386,7 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
             error_traceback = traceback.format_exc()
             self.LOGGER.error(_msg_id(f'Error: {error}'))
             if self.verbose_traceback:
-                self.LOGGER.error(_msg_id(error_traceback))
+                self.LOGGER.error(_msg_id(error_traceback), remove_bk=False)
             self.increment_automation_error_count()
             self.increment_web_driver_handler_error_count(web_driver_handler)
         self.append_automation_result(
