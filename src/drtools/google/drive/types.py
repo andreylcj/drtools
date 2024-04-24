@@ -20,6 +20,8 @@ class DefaultFilesListItem(TypedDict):
     id: FileId
     kind: str
     mimeType: str
+    createdTime: str
+    modifiedTime: str
 
 class DefaultFilesListResult(TypedDict):
     files: List[DefaultFilesListItem]

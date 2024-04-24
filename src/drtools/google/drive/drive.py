@@ -231,7 +231,11 @@ class Drive:
         file_id = file_item[0]['id']
         return self.get_file_content(file_id, try_handle_mimetype, file_item[0]['mimeType'])
     
-    def get_last_modified_file_content_from_folder(self, folder_path: str, mimetype: str=None):
+    def get_last_modified_file_content_from_folder(
+        self, 
+        folder_path: str, 
+        mimetype: str=None
+    ):
         folder_content = self.get_folder_content_from_path(folder_path, page_size=1)
         file_id = folder_content['files'][0]['id']
         mimetype = folder_content['files'][0]['mimeType']

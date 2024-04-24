@@ -424,7 +424,7 @@ class WebDriverHandler:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
             exc_msg = str(exc.msg)
-            self.LOGGER.warning(remove_break_line(exc_msg))
+            self.LOGGER.debug(remove_break_line(exc_msg))
             if raise_exception:
                 raise exc
             result = None
@@ -516,7 +516,7 @@ class WebDriverHandler:
                 raise Exception('Provide "driver" or "reference_el".')
         except Exception as exc:
             exc_msg = str(exc.msg)
-            self.LOGGER.warning(remove_break_line(exc_msg))
+            self.LOGGER.debug(remove_break_line(exc_msg))
             result = None
         return result
     
@@ -634,6 +634,7 @@ class WebDriverHandler:
         self,
         scroll_pause_time: float=1.5,
         timeout: float=30,
+        scroll_middle_action: Callable=None
     ):
         # Get scroll height
         last_height = int(self.driver.execute_script("return document.body.scrollHeight"))
@@ -643,6 +644,9 @@ class WebDriverHandler:
             self.window_scroll(last_height)
             # Wait to load page
             time.sleep(scroll_pause_time)
+            
+            if scroll_middle_action:
+                scroll_middle_action()
 
             # Calculate new scroll height and compare with last scroll height
             new_height = self.driver.execute_script("return document.body.scrollHeight")
@@ -678,6 +682,7 @@ class WebDriverHandler:
         element: WebElement,
         scroll_pause_time: float=1.5,
         timeout: float=30,
+        scroll_middle_action: Callable=None
     ):
         # Get scroll height
         last_height = int(element.get_attribute("scrollHeight"))
@@ -687,6 +692,9 @@ class WebDriverHandler:
             self.perform_scroll(element, last_height)
             # Wait to load page
             time.sleep(scroll_pause_time)
+            
+            if scroll_middle_action:
+                scroll_middle_action()
 
             # Calculate new scroll height and compare with last scroll height
             new_height = int(element.get_attribute("scrollHeight"))
