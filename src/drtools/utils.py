@@ -21,6 +21,9 @@ from typing import (
 import math
 from enum import Enum
 from copy import deepcopy
+import time
+import uuid
+import traceback
 
 
 def progress(
@@ -927,3 +930,77 @@ class ExpectedRemainingTimeHandle:
 
     def display_time(self, executed_num: int, granularity: int=2) -> str:
         return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
+    
+
+def remove_break_line(text: str, replace_txt: str=" <BR> "):
+    if text.endswith("\n"):
+        text = text[:-2]
+    text = text.replace("\n", replace_txt)
+    return text
+
+
+def retry(
+    func, 
+    max_tries=5,
+    wait_time: float=1,
+    raise_exception: bool=False,
+    return_if_not_success: Any=None,
+    LOGGER=None,
+    pre_wait_retry: Callable=None,
+    pre_wait_retry_args: Tuple=(),
+    pre_wait_retry_kwargs: Dict={},
+    post_wait_retry: Callable=None,
+    post_wait_retry_args: Tuple=(),
+    post_wait_retry_kwargs: Dict={},
+    func_args: Tuple=(),
+    func_kwargs: Dict={},
+    execution_id: str=None,
+    verbose_traceback: bool=False,
+    expected: Any=True,
+    compare_response_with_expected: bool=False,
+) -> Tuple:
+    resp = return_if_not_success
+    tries = None
+    last_exception = None
+    execution_id = execution_id or str(uuid.uuid4())
+    def _log(message, method: str="debug"):
+        _message = f'[RetryID:{execution_id}] {message}'
+        if LOGGER:
+            getattr(LOGGER, method)(_message)
+        else:
+            print(f'[{method.upper()}] {_message}')
+    for i in range(max_tries):
+        try:
+            resp = func(*func_args, **func_kwargs)
+            if compare_response_with_expected:
+                if expected != resp:
+                    raise Exception(f"Response different from expected. Response: {resp} | Expected: {expected}")
+            if tries is not None:
+                tries = i + 1
+                _log(f'Success after {tries:,} tries.')
+            return resp, last_exception
+        except Exception as exc:
+            resp = return_if_not_success
+            tries = i + 1
+            last_exception = exc
+            error_message = remove_break_line(str(last_exception))
+            error_traceback = traceback.format_exc()
+            _log(f'Tries: {tries:,} | Error: {error_message}')
+            if verbose_traceback:
+                _log(str(error_traceback))
+            if pre_wait_retry:
+                _log("Executing pre retry waiting action...")
+                pre_wait_retry(last_exception, *pre_wait_retry_args, **pre_wait_retry_kwargs)
+                _log("Executing pre retry waiting action... Done!")
+            if i + 1 != max_tries:
+                _log(f"Waiting for {wait_time:,}s to retry...")
+                time.sleep(wait_time)
+                _log(f"Waiting for {wait_time:,}s to retry... Done!")
+            if post_wait_retry:
+                _log("Executing post retry waiting action...")
+                post_wait_retry(last_exception, *post_wait_retry_args, **post_wait_retry_kwargs)
+                _log("Executing post retry waiting action... Done!")
+    if raise_exception:
+        _log(f"Not success after {max_tries} tries", method="error")
+        raise last_exception
+    return resp, last_exception
