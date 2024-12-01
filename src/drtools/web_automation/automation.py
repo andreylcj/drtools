@@ -8,6 +8,7 @@ from drtools.google.drive.drive import DriveFromServiceAcountFile
 import uuid
 from datetime import datetime
 import time
+import os
 from drtools.utils import display_time, retry, remove_break_line
 import traceback
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -276,7 +277,11 @@ class BaseAutomationProcessFromList(BaseAutomationProcess):
         self.web_driver_start_kwargs = deepcopy(kwargs)
         for i in range(self.max_workers):
             web_driver_handler = self.get_web_driver_handler_copy()
-            web_driver_handler.start(*args, **kwargs)
+            cp_kwargs = deepcopy(kwargs)
+            if cp_kwargs.get('download_path', False) and self.max_workers > 1:
+                cp_kwargs['download_path'] = f"{cp_kwargs['download_path']}-{i+1}"
+            web_driver_handler.start(*args, **cp_kwargs)
+            os.makedirs(web_driver_handler.download_path)
             self.add_web_driver_handler(web_driver_handler)
         self.LOGGER.info("Initializing drivers... Done!")
     
