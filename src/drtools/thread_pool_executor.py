@@ -40,6 +40,7 @@ class ThreadConfig:
 		direct: bool=True,
 		log_traceback: bool=False,
 		archive_worker_response: bool=False,
+        logger_method: Callable=None,
         LOGGER: Logger=Logger(
             name='ThreadPoolExecutorMain',
             formatter_options=FormatterOptions(
@@ -56,6 +57,7 @@ class ThreadConfig:
         self.direct = direct
         self.log_traceback = log_traceback
         self.archive_worker_response = archive_worker_response
+        self.logger_method = logger_method
         self.LOGGER = LOGGER
 
 
@@ -75,6 +77,7 @@ class ThreadPoolExecutor:
         self.direct = thread_config.direct
         self.log_traceback = thread_config.log_traceback
         self.archive_worker_response = thread_config.archive_worker_response
+        self.logger_method = thread_config.logger_method
         self.LOGGER = thread_config.LOGGER
         self.total_worker_data_len = len(self.worker_data)
         self._worker_responses = []
@@ -139,7 +142,20 @@ class ThreadPoolExecutor:
             
             log_txt = f'{progress_percentage}% ({self.num_of_processed_workers:,}/{self.total_worker_data_len:,}) complete. '
             log_txt += f'Expected remaining time: {display_time(expected_remaining_seconds)}'
+            
             self.LOGGER.info(log_txt)
+            
+            if self.logger_method:
+                details = {
+                    'exec_func_response': exec_func_response,
+                    'num_of_processed_workers': self.num_of_processed_workers,
+                    'total_exec_time': total_exec_time,
+                    'progress_percentage': progress_percentage,
+                    'seconds_by_worker': seconds_by_worker,
+                    'expected_remaining_seconds': expected_remaining_seconds,
+                    'log_txt': log_txt,
+                }
+                self.logger_method(details)
             
     
     def _exec_func_handler(self, worker: Worker):
