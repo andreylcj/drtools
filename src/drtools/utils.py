@@ -47,7 +47,7 @@ def progress(
     """
     progress = int(round(current * 100 / total, 0))
     if progress >= 100 \
-        or (progress != 100 and current == total): 
+    or (progress != 100 and current == total): 
         progress = 100
     return progress
 
@@ -930,6 +930,103 @@ class ExpectedRemainingTimeHandle:
 
     def display_time(self, executed_num: int, granularity: int=2) -> str:
         return display_time(math.ceil(self.seconds(executed_num)), granularity=granularity)
+
+
+class ProgressETA:
+    def __init__(
+        self, 
+        iterable, 
+        every: int=1,
+        display_time_granularity: int=2,
+        LOGGER=None,
+    ):
+        """
+        Args:
+            iterable (iterable): Qualquer iterável (lista, gerador, etc.)
+            every (int): Frequência de exibição do progresso (ex: 10 mostra a cada 10 itens).
+            display_time_granularity (int): Granularidade do display_time
+        """
+        self.LOGGER = LOGGER
+        self.iterable = iter(iterable)
+        try:
+            self.total = len(iterable)
+        except Exception as exc:
+            self._log(
+                f'An exception was generated when try to get len of "iterable" arg. Attribute "total" value will be set to "None". Exc: {exc}',
+                'error'
+            )
+            self.total = None
+        self.every = every
+        self.display_time_granularity = display_time_granularity
+        self.count = 0
+        self.processed_num = 0
+        self.started_at = None
+        self.finished_at = None
+
+    def __iter__(self):
+        return self
+    
+    @property
+    def duration(self) -> float:
+        return (datetime.now() - self.started_at).total_seconds()
+    
+    @property
+    def progress_perc_from_0_to_100(self) -> str:
+        return str(progress(current=self.processed_num, total=self.total))
+    
+    @property
+    def expected_remaining_seconds(self) -> int:
+        speed = self.duration / self.processed_num
+        expected_remaining_seconds = math.ceil((self.total - self.processed_num) * speed)
+        expected_remaining_seconds = expected_remaining_seconds + 1
+        return expected_remaining_seconds
+    
+    @property
+    def display_expected_remaining(self) -> str:
+        return display_time(
+            self.expected_remaining_seconds,
+            self.display_time_granularity
+        )
+    
+    def _log(self, message, method: str="debug"):
+        if self.LOGGER:
+            getattr(self.LOGGER, method)(message)
+        else:
+            print(f'[{method.upper()}] {message}')
+
+    def current_log(self) -> str:
+        if self.total:
+            log_txt = f'{self.progress_perc_from_0_to_100}% ({self.processed_num:,}/{self.total:,}) complete.'
+            if self.processed_num > 0:
+                log_txt += ' '
+                log_txt += f'Expected remaining time: {self.display_expected_remaining}'
+                
+        else:
+            log_txt = f'({self.processed_num:,}) complete.'
+        
+        return log_txt
+
+    def __next__(self):
+        if self.started_at is None:
+            self.started_at = datetime.now()
+        
+        try:
+            item = next(self.iterable)
+            self.count += 1
+            self.processed_num = self.count - 1
+            if self.every and self.count % self.every == 0:
+                self._log(self.current_log())
+
+            return item
+
+        except StopIteration:
+            self.count += 1
+            self.processed_num = self.count - 1
+            self._log(self.current_log())
+            self.finished_at = datetime.now()
+            duration = (self.finished_at - self.started_at).total_seconds()
+            self._log(f"Processing completed in {duration:.2f} seconds ({self.processed_num:,} items).")
+            raise
     
 
 def remove_break_line(text: str, replace_txt: str=" <BR> "):

@@ -108,10 +108,10 @@ class BaseRequester:
                 default_start=False
             ),
     ) -> None:
-        assert self.HOST is not None, \
-            "Static attribute HOST must be set."
-        assert self.PATHNAME is not None, \
-            "Static attribute PATHNAME must be set."
+        # assert self.HOST is not None, \
+        #     "Static attribute HOST must be set."
+        # assert self.PATHNAME is not None, \
+        #     "Static attribute PATHNAME must be set."
         self.retry = retry
         self.LOGGER = LOGGER
         self.URL = None
@@ -141,6 +141,10 @@ class BaseRequester:
         **kwargs
     ) -> str:
         url_params_str = url_params.build()
+        if self.HOST is None:
+            raise Exception("Static attribute HOST must be set.")
+        if self.PATHNAME is None:
+            raise Exception("Static attribute PATHNAME must be set.")
         url = f'{self.HOST}{self.PATHNAME}'
         self.URL = self._build_url(
             url=url,
