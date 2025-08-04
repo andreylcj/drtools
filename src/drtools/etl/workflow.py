@@ -63,6 +63,8 @@ class ToThroughFromETLWorkflow(Workflow):
         raise NotImplementedError
     
     def run(self, *args, **kwargs):
+        self.LOGGER.info(f"Running workflow: {self.__class__.__name__}...")
+        
         self.LOGGER.info("Extracting...")
         self.extract_response = self.extract(*args, **kwargs)
         self.LOGGER.info("Extracting... Done!")
@@ -74,6 +76,8 @@ class ToThroughFromETLWorkflow(Workflow):
         self.LOGGER.info("Loading...")
         self.load_response = self.load(self.transform_response, *args, **kwargs)
         self.LOGGER.info("Loading... Done!")
+        
+        self.LOGGER.info(f"Running workflow: {self.__class__.__name__}... Done!")
     
     
 class CustomWorkflow(Workflow):

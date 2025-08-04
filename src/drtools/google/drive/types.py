@@ -7,6 +7,8 @@ from enum import Enum
 class Mimetype(Enum):
     JSON = ('application/json',)
     
+    CSV = ('text/csv',)
+    
     @property
     def content_type(self) -> str:
         return self.value[0]

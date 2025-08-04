@@ -10,7 +10,8 @@ from .types import (
     Mimetype,
 )
 from .utils import (
-    bytes_to_json
+    bytes_to_json,
+    bytes_to_csv_dicts
 )
 import io
 from googleapiclient.http import (
@@ -22,6 +23,7 @@ from googleapiclient.http import (
 from drtools.logging import Logger, FormatterOptions
 from typing import Callable
 import json
+from datetime import datetime
 
 
 DEFAULTS_FIELDS: str = "nextPageToken, files(id, name, kind, mimeType, createdTime, modifiedTime)"
@@ -56,6 +58,22 @@ class Drive:
     @property
     def service(self):
         return self._service
+    
+    def list_files(
+        self,
+        q: str,
+        page_size: int=1000,
+        fields: str=DEFAULTS_FIELDS,
+        order_by: str=DEFAULT_ORDER_BY,
+        page_token: str=None
+    ) -> FilesListResult:
+        return self.service.files().list(
+            q=q, 
+            pageSize=page_size, 
+            fields=fields,
+            orderBy=order_by,
+            pageToken=page_token,
+        ).execute()
         
     def get_folders_from_name(
         self,
@@ -63,18 +81,20 @@ class Drive:
         page_size: int=10,
         fields: str=DEFAULTS_FIELDS,
         parent_folder_id: str=None,
-        order_by: str=DEFAULT_ORDER_BY
+        order_by: str=DEFAULT_ORDER_BY,
+        page_token: str=None
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         q = f"mimeType='application/vnd.google-apps.folder' and name='{name}'"
         if parent_folder_id:
             q += f" and '{parent_folder_id}' in parents"
-        results = self.service.files().list(
+        results = self.list_files(
             q=q, 
-            pageSize=page_size, 
+            page_size=page_size, 
             fields=fields,
-            orderBy=order_by,
-        ).execute()
+            order_by=order_by,
+            page_token=page_token,
+        )
         return results
     
     def get_folder_content(
@@ -85,25 +105,88 @@ class Drive:
         fields: str=DEFAULTS_FIELDS,
         deep: bool=False,
         order_by: str=DEFAULT_ORDER_BY,
+        page_token: str=None,
+        custom_query_extend_and_case: str=None # will be add after default query concatening using "and"
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         def _get_folder_content(folder_id, page_size, trashed):
             trashed = 'true' if trashed else 'false'
-            results = self.service.files().list(
-                q=f"'{folder_id}' in parents and trashed={trashed}", 
-                pageSize=page_size, 
+            q = f"'{folder_id}' in parents and trashed={trashed}"
+            if custom_query_extend_and_case:
+                q += ' and ' + custom_query_extend_and_case
+            results = self.list_files(
+                q=q, 
+                page_size=page_size, 
                 fields=fields,
-                orderBy=order_by,
-            ).execute()
+                order_by=order_by,
+                page_token=page_token,
+            )
             items = results
             return items
         items = _get_folder_content(folder_id, page_size, trashed)
         if deep:
             items = [
-                {**item, 'content': self.serive.get_folder_content(item['id'], page_size, trashed, True) if 'folder' in item['mimeType'] else None}
-                for item in items
+                {
+                    **item, 
+                    'content': self.get_folder_content(
+                            folder_id=item['id'], 
+                            page_size=page_size, 
+                            trashed=trashed, 
+                            fields=fields,
+                            deep=deep,
+                            order_by=order_by,
+                            page_token=page_token,
+                        ) if 'folder' in item['mimeType'] else None
+                } for item in items
             ]
         return items
+    
+    def list_files_from_folder_filtering_by_modified_time(
+        self,
+        path: str, 
+        page_size: int=1000, 
+        trashed: bool=False, 
+        fields: str=DEFAULTS_FIELDS,
+        deep: bool=False,
+        order_by: str=DEFAULT_ORDER_BY,
+        page_token: str=None,
+        start_date: str=None, # date isoformat
+        end_date: str=None, # date isoformat
+    ) -> FilesListResult:
+        start_date_dt = None
+        end_date_dt = None
+        
+        if start_date:
+            start_date_dt = datetime.fromisoformat(start_date)
+            
+        if end_date:
+            end_date_dt = datetime.fromisoformat(end_date)
+            
+        custom_query_extend_and_case = ''
+        
+        if start_date_dt and end_date_dt:
+            start_rfc3339  = start_date_dt.isoformat() + 'Z'
+            end_rfc3339 = end_date_dt.isoformat() + 'Z'
+            custom_query_extend_and_case += f"modifiedTime >= '{start_rfc3339}' and modifiedTime <= '{end_rfc3339}'"
+            
+        elif start_date_dt and not end_date_dt:
+            start_rfc3339  = start_date_dt.isoformat() + 'Z'
+            custom_query_extend_and_case += f"modifiedTime >= '{start_rfc3339}'"
+            
+        elif not start_date_dt and end_date_dt:
+            end_rfc3339  = end_date_dt.isoformat() + 'Z'
+            custom_query_extend_and_case += f"modifiedTime <= '{end_rfc3339}'"
+            
+        return self.get_folder_content_from_path(
+            path=path,
+            page_size=page_size,
+            trashed=trashed,
+            fields=fields,
+            deep=deep,
+            order_by=order_by,
+            page_token=page_token,
+            custom_query_extend_and_case=custom_query_extend_and_case,
+        )
     
     def get_folder_id_from_path(self, path: str) -> FileId:
         folder_names = path.split('/')
@@ -134,10 +217,21 @@ class Drive:
         fields: str=DEFAULTS_FIELDS,
         deep: bool=False,
         order_by: str=DEFAULT_ORDER_BY,
+        page_token: str=None,
+        custom_query_extend_and_case: str=None
     ) -> FilesListResult:
         """List folders and files in Google Drive."""
         folder_id = self.get_folder_id_from_path(path)
-        return self.get_folder_content(folder_id, page_size, trashed, fields, deep, order_by)
+        return self.get_folder_content(
+            folder_id=folder_id, 
+            page_size=page_size, 
+            trashed=trashed, 
+            fields=fields,
+            deep=deep,
+            order_by=order_by,
+            page_token=page_token,
+            custom_query_extend_and_case=custom_query_extend_and_case,
+        )
     
     def create_folder(
         self,
@@ -184,6 +278,7 @@ class Drive:
         file_id: str,
         try_handle_mimetype: bool=True,
         mimetype: str=None,
+        **handle_bytes_from_mimetype_kwargs
     ) -> bytes:
         request = self.service.files().get_media(fileId=file_id)
         # create_directories_of_path(filepath)
@@ -195,8 +290,8 @@ class Drive:
             status, done = downloader.next_chunk()
             self.LOGGER.debug(f"[GoogleDrive:FileID:{file_id}] Download {int(status.progress() * 100)}%.")
         value = fh.getvalue()
-        if try_handle_mimetype:
-            value = self.handle_bytes_from_mimetype(value, mimetype)
+        if try_handle_mimetype and mimetype:
+            value = self.handle_bytes_from_mimetype(value, mimetype, **handle_bytes_from_mimetype_kwargs)
         return value
     
     @classmethod
@@ -316,10 +411,14 @@ class Drive:
         cls,
         content: bytes,
         mimetype: str,
-        raise_exception: bool=True
+        raise_exception: bool=True,
+        **kwargs
     ):
         if mimetype == Mimetype.JSON.content_type:
-            value = bytes_to_json(content)
+            value = bytes_to_json(content, **kwargs)
+            
+        elif mimetype == Mimetype.CSV.content_type:
+            value = bytes_to_csv_dicts(content, **kwargs)
         
         else:
             if raise_exception:
