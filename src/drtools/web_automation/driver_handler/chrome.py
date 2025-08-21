@@ -27,6 +27,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
         download_path: str=None,
         language: str='en-US',
         disable_password_save: bool=True,
+        custom_prefs: Dict={}
     ) -> None:
         """Start Selenium Wire Chrome Driver.
         
@@ -96,11 +97,14 @@ class ChromeWebDriverHandler(WebDriverHandler):
         if disable_password_save:
             chrome_prefs['credentials_enable_service'] = False
             chrome_prefs['profile.password_manager_enabled'] = False
+            chrome_prefs['profile.password_manager_leak_detection'] = False
 
         # Set Experimental Options
         previous_prefs = options.experimental_options.get("prefs", {})
         prefs = {**chrome_prefs, **previous_prefs}
         self.download_path = prefs.get("download.default_directory", download_path)
+        prefs = {**prefs, **custom_prefs}
+        self.LOGGER.info(f"Chrome Prefs: {prefs}")
         options.experimental_options["prefs"] = prefs
 
         # Remove UI
