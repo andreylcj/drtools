@@ -12,6 +12,51 @@ from fake_useragent import UserAgent
 
 
 class ChromeWebDriverHandler(WebDriverHandler):
+    """Handler de automação web baseado no Google Chrome via Selenium Wire.
+
+    Implementação concreta de :class:`~drtools.web_automation.driver_handler.handler.WebDriverHandler`
+    para Chrome, com suporte a:
+
+    - Modo headless (sem interface gráfica).
+    - Controle de carregamento de imagens e JavaScript.
+    - Prevenção de detecção de automação (desabilita flags do Chromium, randomiza User-Agent).
+    - Proxy via ``seleniumwire_options``.
+    - Configuração de pasta de download.
+    - Preferências customizadas do Chrome.
+
+    Example:
+        >>> from drtools.web_automation.driver_handler.chrome import ChromeWebDriverHandler
+        >>> from drtools.web_automation.bot_detection import GoogleBotDetection, BlockDetection
+        ...
+        >>> handler = ChromeWebDriverHandler(
+        ...     bot_detection_methods=[GoogleBotDetection, BlockDetection],
+        ...     bot_detection_max_retries=3,
+        ... )
+        ...
+        >>> # Inicialização básica (com UI, sem imagens, prevenção de bot)
+        >>> handler.start(load_images=False, prevent_bot_detection=True)
+        ...
+        >>> # Inicialização headless para ambientes de servidor
+        >>> handler.start(
+        ...     remove_ui=True,
+        ...     load_images=False,
+        ...     download_path="/tmp/downloads",
+        ... )
+        ...
+        >>> # Com proxy via seleniumwire
+        >>> handler.start(
+        ...     seleniumwire_options={
+        ...         "proxy": {
+        ...             "http": "http://user:pass@proxy.example.com:8080",
+        ...             "https": "http://user:pass@proxy.example.com:8080",
+        ...             "verify_ssl": False,
+        ...         }
+        ...     }
+        ... )
+        ...
+        >>> handler.go_to_page("https://www.amazon.com")
+        >>> handler.quit()
+    """
 
     def start(
         self,
@@ -29,26 +74,61 @@ class ChromeWebDriverHandler(WebDriverHandler):
         disable_password_save: bool=True,
         custom_prefs: Dict={}
     ) -> None:
-        """Start Selenium Wire Chrome Driver.
-        
-        Example
-        -------
-        Examples of Chrome Options Arguments usage:
-        
-        **Remove UI**
-        
-        - chrome_options.add_argument("--headless")
-        - chrome_options.add_argument("--no-sandbox")
-        - chrome_options.add_argument("--mute-audio")    
-        
-        **Change window size**
-        
-        - chrome_options.add_argument("--start-maximized")
-        - chrome_options.add_argument("--window-size=1920x1080")
-        
-        **Change default download location**
-        
-        - chrome_options.add_argument("download.default_directory=C:/Downloads")
+        """Inicializa o Chrome WebDriver com as configurações fornecidas.
+
+        Configura opções do Chrome, instala o ChromeDriver via ``webdriver_manager``
+        (se ``executable_path`` não for informado), cria o driver Selenium ou
+        Selenium Wire (quando ``seleniumwire_options`` é fornecido) e aplica
+        as medidas de prevenção de detecção de bot quando solicitado.
+
+        Args:
+            options: Instância de :class:`~selenium.webdriver.chrome.options.Options`
+                pré-configurada. Se ``None``, uma nova é criada.
+            options_arguments: Lista de argumentos adicionais do Chrome
+                (e.g. ``["--proxy-server=host:port"]``). Argumentos de
+                ``window-size``, ``start-maximized`` e ``lang`` têm defaults
+                aplicados automaticamente se ausentes.
+            load_images: Se ``True``, carrega imagens. Padrão: ``False`` (imagens
+                desabilitadas para maior velocidade).
+            load_js: Se ``True`` (padrão), executa JavaScript. Se ``False``, desabilita JS.
+            remove_ui: Se ``True``, inicia em modo headless com ``--headless=new``,
+                ``--no-sandbox``, ``--disable-gpu`` e ``--mute-audio``.
+                Padrão: ``False``.
+            prevent_bot_detection: Se ``True`` (padrão), desabilita flags de automação
+                do Chromium (``AutomationControlled``), remove o switch
+                ``enable-automation``, desabilita a extensão de automação e
+                sobrescreve o User-Agent com um valor aleatório de usuário real.
+            warning_logs: Se ``True`` (padrão), suprime logs verbosos do Selenium
+                e urllib3 abaixo do nível WARNING.
+            seleniumwire_options: Dict de opções para o Selenium Wire
+                (e.g. proxy, SSL). Se ``None`` ou vazio, usa o Selenium padrão
+                sem Selenium Wire.
+            executable_path: Caminho para o ``chromedriver`` binário. Se ``None``,
+                instala automaticamente via ``ChromeDriverManager``.
+            download_path: Caminho absoluto do diretório de download padrão.
+                Se ``None``, usa o padrão do Chrome.
+            language: Idioma do navegador. Padrão: ``"en-US"``.
+            disable_password_save: Se ``True`` (padrão), desabilita o gerenciador
+                de senhas e o popup de salvar senha do Chrome.
+            custom_prefs: Dict de preferências adicionais do Chrome a mesclar
+                após as configurações padrão (tem prioridade sobre os defaults).
+
+        Example:
+            >>> handler = ChromeWebDriverHandler()
+            ...
+            >>> # Headless sem imagens, idioma pt-BR
+            >>> handler.start(
+            ...     remove_ui=True,
+            ...     load_images=False,
+            ...     language="pt-BR",
+            ...     download_path="/tmp/relatorios",
+            ... )
+            ...
+            >>> # Com argumentos extras e prefs customizadas
+            >>> handler.start(
+            ...     options_arguments=["--window-size=1280x800"],
+            ...     custom_prefs={"download.prompt_for_download": False},
+            ... )
         """
 
         # set options if not provided
@@ -65,10 +145,9 @@ class ChromeWebDriverHandler(WebDriverHandler):
             if 'start-maximized' in arg:
                 has_start_maximized = True
             if 'lang=' in arg:
-                has_lang = True 
+                has_lang = True
             options.add_argument(arg)
         if not has_window_size:
-            # TODO - Set random available window size
             options.add_argument('--window-size=1920x1080')
         if not has_start_maximized:
             options.add_argument('--start-maximized')
@@ -78,13 +157,12 @@ class ChromeWebDriverHandler(WebDriverHandler):
         # Set chrome prefs
         chrome_prefs = {
             "profile.default_content_setting_values": {},
-            # "download.default_directory" : "./downloads"
         }
-            
+
         # not load images
         if not load_images:
             chrome_prefs['profile.default_content_setting_values']['images'] = 2
-            
+
         # not load js
         if not load_js:
             chrome_prefs['profile.default_content_setting_values']['javascript'] = 2
@@ -92,7 +170,7 @@ class ChromeWebDriverHandler(WebDriverHandler):
         # set download path
         if download_path:
             chrome_prefs['download.default_directory'] = download_path
-            
+
         # disable password save
         if disable_password_save:
             chrome_prefs['credentials_enable_service'] = False
@@ -118,13 +196,13 @@ class ChromeWebDriverHandler(WebDriverHandler):
             for remove_ui_arg in remove_ui_args:
                 if remove_ui_arg not in options_arguments:
                     options.add_argument(remove_ui_arg)
-        
+
         # Prevent bot detection
         if prevent_bot_detection:
             options.add_argument('--disable-blink-features=AutomationControlled')
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option('useAutomationExtension', False)
-        
+
         # Only display possible problems
         if warning_logs:
             logging.getLogger('selenium.webdriver.remote.remote_connection') \
@@ -137,22 +215,28 @@ class ChromeWebDriverHandler(WebDriverHandler):
 
         # Start selenium wire instance only if seleniumwire_options is not empty
         if not seleniumwire_options:
-            # Initialize driver
             driver = SeleniumChromeWebDriver(options, ChromeService(executable_path))
         else:
-            # Initialize driver
             driver = ChromeWebDriver(options, ChromeService(executable_path), seleniumwire_options=seleniumwire_options)
-        
+
         # Prevent bot detection
         if prevent_bot_detection:
             user_agent = UserAgent(browsers="chrome", os="windows", platforms="pc")
             user_agent = user_agent.getChrome['useragent']
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": user_agent})
-        
+
         self.set_driver(driver)
-    
+
     def quit(self) -> None:
+        """Encerra o Chrome WebDriver com tratamento de erros.
+
+        Chama ``driver.quit()`` e loga qualquer exceção sem propagá-la,
+        garantindo que a automação não quebre no encerramento.
+
+        Example:
+            >>> handler.quit()
+        """
         try:
             self.driver.quit()
         except Exception as exc:
