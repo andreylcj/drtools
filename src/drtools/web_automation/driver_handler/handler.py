@@ -24,6 +24,7 @@ from .config import (
     DEFAULT_BOT_DETECTION_WAIT_FOR_PRESENCE_DELAY,
 )
 from drtools.utils import retry, remove_break_line
+from selenium.webdriver.common.window import WindowTypes
 
 
 class WebDriverHandler:
@@ -507,12 +508,29 @@ class WebDriverHandler:
             >>> handler.go_to_tab(0)  # volta para a primeira aba
         """
         try:
-            self.driver.execute_script(f'window.open("{url}","_blank");')
+            self.driver.switch_to.new_window(WindowTypes.TAB)
             self.go_to_tab(-1)
         except:
-            self.go_to_tab(0)
-            self.driver.execute_script(f'window.open("{url}","_blank");')
+            try:
+                self.driver.execute_script(f'window.open("{url}","_blank");')
+                self.go_to_tab(-1)
+            except:
+                self.go_to_tab(0)
+                self.driver.execute_script(f'window.open("{url}","_blank");')
+                self.go_to_tab(-1)
+
+    def clean_tabs(self, url: str='https://www.google.com') -> None:
+        for i in range(len(self.driver.window_handles)-1):
             self.go_to_tab(-1)
+            self.close_current_tab()
+        # time.sleep(.5)
+        self.go_to_tab(0)
+        self.driver.switch_to.new_window(WindowTypes.TAB)
+        # time.sleep(.5)
+        self.go_to_tab(0)
+        self.close_current_tab()
+        self.go_to_tab(0)
+        self.go_to_page(url)
 
     def go_to_page(self, url: str) -> None:
         """Navega para a URL informada com retry automático em caso de detecção de bot.

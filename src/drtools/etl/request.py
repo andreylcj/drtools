@@ -1,10 +1,11 @@
 
 
-from typing import List, Dict, Union, Optional, Any, Callable
+from typing import List, Dict, Union, Optional, Any, Callable, TypedDict
 from drtools.logging import Logger, FormatterOptions
 from requests import Response, Session
 import traceback
 import json
+import re
 from copy import deepcopy
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -852,3 +853,431 @@ class ThreadRequester(BaseRequester):
         self.LOGGER.info('Parsing thread response... Done!')
 
         return self.parsed_response
+
+
+class PerformRequestResponse(TypedDict):
+    """Resposta estruturada retornada por :class:`ApiRequester` quando
+    ``return_only_json_response=False``.
+
+    Attributes:
+        final_url: URL completa que foi requisitada (com query string).
+        post_data: Payload enviado na requisição (``None`` para GET).
+        response: Objeto bruto :class:`requests.Response`.
+        json_response: Resultado de ``response.json()``, ou ``None`` se
+            o parse não for aplicável.
+
+    Example:
+        >>> result: PerformRequestResponse = {
+        ...     "final_url": "https://api.example.com/v1/items/?page=1",
+        ...     "post_data": None,
+        ...     "response": <Response [200]>,
+        ...     "json_response": {"items": [...]},
+        ... }
+    """
+
+    final_url: str
+    post_data: Optional[Dict]
+    response: Response
+    json_response: Optional[Dict]
+
+
+class ApiEndpoint:
+    """Define um endpoint nomeado de uma API REST com método, path e defaults por chamada.
+
+    Permite registrar múltiplos endpoints em uma mesma instância de
+    :class:`ApiRequester`, cada um com seus próprios ``default_params``
+    (:class:`URLParams`) e ``default_post_data`` (dict).
+
+    Args:
+        name: Identificador único do endpoint. Deve corresponder ao padrão
+            ``[A-Za-z0-9\\-]+``. Ao registrar em :class:`ApiRequester`, hifens
+            são convertidos para underscores no nome do método gerado.
+        path: Caminho do endpoint relativo ao ``HOST``
+            (e.g. ``"/api/v1/users"``).
+        method: Método HTTP do endpoint (:class:`HTTPMethod`).
+        default_params: :class:`URLParams` com parâmetros de query padrão.
+            São mesclados com os params fornecidos em cada chamada — os da
+            chamada têm prioridade (sobrescrevem defaults de mesmo nome).
+        default_post_data: Dict com campos padrão do corpo da requisição POST.
+            Mesclado com o ``post_data`` de cada chamada; valores ``None``
+            são removidos do resultado final.
+
+    Raises:
+        Exception: Se ``name`` contiver caracteres fora de ``[A-Za-z0-9\\-]``.
+
+    Example:
+        >>> endpoint = ApiEndpoint(
+        ...     name="list-items",
+        ...     path="/api/v1/items",
+        ...     method=HTTPMethod.GET,
+        ...     default_params=URLParams([URLParam("size", "50")]),
+        ... )
+        >>> endpoint.endpoint_url(URLParams([URLParam("page", "2")]))
+        '/api/v1/items?size=50&page=2'
+
+        >>> post_ep = ApiEndpoint(
+        ...     name="create-item",
+        ...     path="/api/v1/items",
+        ...     method=HTTPMethod.POST,
+        ...     default_post_data={"active": True, "source": "api"},
+        ... )
+        >>> post_ep.construct_post_data({"name": "foo"})
+        {"active": True, "source": "api", "name": "foo"}
+    """
+
+    @staticmethod
+    def validate_name(name: str) -> bool:
+        """Verifica se ``name`` corresponde ao padrão ``[A-Za-z0-9\\-]+``.
+
+        Returns:
+            ``True`` se válido, ``False`` caso contrário.
+        """
+        return bool(re.fullmatch(r'[A-Za-z0-9\-]+', name))
+
+    def __init__(
+        self,
+        name: str,
+        path: str,
+        method: HTTPMethod,
+        default_params: URLParams=None,
+        default_post_data: Optional[Dict]=None,
+    ):
+        if default_params is None:
+            default_params = URLParams()
+        self.name = name
+        self.path = path
+        self.method = method
+        self.default_params = default_params
+        self.default_post_data = default_post_data
+        if not self.validate_name(self.name):
+            raise Exception(
+                f"Parameter 'name' must match [A-Za-z0-9\\-]+. Received: {self.name!r}"
+            )
+
+    def _construct_endpoint_with_params(self, params: URLParams=None) -> str:
+        """Constrói o path completo com query string mesclando defaults e params da chamada.
+
+        Params da chamada sobrescrevem defaults de mesmo nome.
+
+        Args:
+            params: :class:`URLParams` adicionais para esta chamada.
+
+        Returns:
+            Path com query string (e.g. ``"/api/v1/items?size=50&page=2"``),
+            ou apenas o path se não houver params.
+        """
+        if params is None:
+            params = URLParams()
+        merged = deepcopy(self.default_params)
+        for p in params.list_url_params():
+            merged.add_url_param(p)
+        qs = merged.build()
+        return f'{self.path}?{qs}' if qs else self.path
+
+    def endpoint_url(self, params: URLParams=None) -> str:
+        """Retorna o path com query string para uso na construção da URL final.
+
+        Args:
+            params: :class:`URLParams` adicionais para esta chamada.
+                Mesclados sobre os ``default_params`` do endpoint.
+
+        Returns:
+            Path relativo com query string (sem host).
+
+        Example:
+            >>> ep = ApiEndpoint("search", "/v1/search", HTTPMethod.GET,
+            ...                  URLParams([URLParam("lang", "pt")]))
+            >>> ep.endpoint_url(URLParams([URLParam("q", "python")]))
+            '/v1/search?lang=pt&q=python'
+        """
+        return self._construct_endpoint_with_params(params=params)
+
+    def construct_post_data(self, post_data: Dict=None) -> Optional[Dict]:
+        """Mescla ``post_data`` da chamada sobre ``default_post_data``, removendo ``None``.
+
+        Args:
+            post_data: Campos a adicionar/sobrescrever no corpo da requisição.
+                Se ``None``, retorna ``default_post_data`` diretamente.
+
+        Returns:
+            Dict mesclado sem valores ``None``, ou ``None`` se não houver dados.
+
+        Example:
+            >>> ep = ApiEndpoint("create", "/v1/items", HTTPMethod.POST,
+            ...                  default_post_data={"active": True, "source": "api"})
+            >>> ep.construct_post_data({"name": "foo", "active": None})
+            {"source": "api", "name": "foo"}
+        """
+        if not post_data:
+            return self.default_post_data
+        final = deepcopy(self.default_post_data) if self.default_post_data else {}
+        final = {**final, **post_data}
+        return {k: v for k, v in final.items() if v is not None}
+
+
+class ApiRequester(ThreadRequester):
+    """Handler de API REST com múltiplos endpoints registrados dinamicamente.
+
+    Combina o melhor de dois mundos:
+
+    - **Multi-endpoint por instância** — registre N endpoints com
+      :meth:`add_endpoint` e acesse cada um como método callable
+      (``self.list_items()``, ``self.create_item(post_data={...})``).
+    - **Infraestrutura de :class:`ThreadRequester`** — Session com retry,
+      logging drtools, paralelismo via thread pool, pipeline completo
+      de ``prep_data`` → ``build_url`` → ``request`` → ``parse_response``.
+
+    Class Attributes:
+        HOST: URL base da API (e.g. ``"https://api.example.com"``). **Obrigatório.**
+        ACCEPT_ALL_PARAMS: Sempre ``True`` — validação de params é delegada
+            a cada :class:`ApiEndpoint`.
+
+    Args:
+        return_only_json_response: Se ``True`` (padrão), os métodos de endpoint
+            retornam apenas ``response.json()``. Se ``False``, retornam um
+            :class:`PerformRequestResponse` completo.
+        **kwargs: Repassados a :class:`ThreadRequester` (``retry``, ``LOGGER``).
+
+    Example:
+        >>> from drtools.etl.request import (
+        ...     ApiRequester, ApiEndpoint, URLParams, URLParam, HTTPMethod
+        ... )
+        ...
+        >>> class MyAPI(ApiRequester):
+        ...     HOST = "https://jsonplaceholder.typicode.com"
+        ...
+        >>> api = MyAPI()
+        ...
+        >>> api.add_endpoint(ApiEndpoint(
+        ...     name="list-posts",
+        ...     path="/posts",
+        ...     method=HTTPMethod.GET,
+        ...     default_params=URLParams([URLParam("_limit", "10")]),
+        ... ))
+        ...
+        >>> api.add_endpoint(ApiEndpoint(
+        ...     name="create-post",
+        ...     path="/posts",
+        ...     method=HTTPMethod.POST,
+        ...     default_post_data={"userId": 1},
+        ... ))
+        ...
+        >>> # Chama o endpoint como método (nome com hífen vira snake_case)
+        >>> posts = api.list_posts()
+        >>> posts = api.list_posts(params=URLParams([URLParam("_limit", "5")]))
+        ...
+        >>> new_post = api.create_post(post_data={"title": "Hello", "body": "World"})
+        ...
+        >>> # Listar endpoints registrados
+        >>> api.list_api_methods()
+        ['list_posts', 'create_post']
+        ...
+        >>> # Com resposta estruturada completa
+        >>> api2 = MyAPI(return_only_json_response=False)
+        >>> api2.add_endpoint(ApiEndpoint("list-posts", "/posts", HTTPMethod.GET))
+        >>> result = api2.list_posts()
+        >>> result["final_url"]
+        'https://jsonplaceholder.typicode.com/posts'
+        >>> result["response"].status_code
+        200
+    """
+
+    ACCEPT_ALL_PARAMS: bool = True
+
+    def __init__(
+        self,
+        return_only_json_response: bool=True,
+        **kwargs,
+    ) -> None:
+        super(ApiRequester, self).__init__(**kwargs)
+        self.return_only_json_response = return_only_json_response
+        self._endpoints: Dict[str, ApiEndpoint] = {}
+
+    def add_endpoint(self, endpoint: ApiEndpoint) -> None:
+        """Registra um :class:`ApiEndpoint` e expõe-o como método na instância.
+
+        O nome do endpoint (com hifens substituídos por underscores) torna-se
+        um método callable: ``add_endpoint(ApiEndpoint("get-user", ...))``
+        cria ``self.get_user(params=..., post_data=...)``.
+
+        Args:
+            endpoint: Endpoint a registrar.
+
+        Raises:
+            Exception: Se já existir um endpoint com o mesmo nome.
+
+        Example:
+            >>> api.add_endpoint(ApiEndpoint(
+            ...     name="get-user",
+            ...     path="/v1/users/{id}",
+            ...     method=HTTPMethod.GET,
+            ... ))
+            >>> api.get_user()  # chama o endpoint
+        """
+        if endpoint.name in self._endpoints:
+            raise Exception(
+                f"Endpoint '{endpoint.name}' already registered. Names must be unique."
+            )
+        self._endpoints[endpoint.name] = endpoint
+        code_name = endpoint.name.replace('-', '_')
+        setattr(self, code_name, self._wrap(endpoint.name))
+
+    def _wrap(self, endpoint_name: str) -> Callable:
+        """Retorna um callable que invoca :meth:`_call_endpoint` para ``endpoint_name``.
+
+        Args:
+            endpoint_name: Nome do endpoint registrado.
+
+        Returns:
+            Callable com assinatura ``(params=URLParams(), post_data=None)``.
+        """
+        def _call(
+            params: URLParams=None,
+            post_data: Dict=None,
+        ) -> Any:
+            return self._call_endpoint(endpoint_name, params, post_data)
+        return _call
+
+    def _call_endpoint(
+        self,
+        endpoint_name: str,
+        params: URLParams=None,
+        post_data: Dict=None,
+    ) -> Any:
+        """Executa uma requisição para o endpoint registrado com o nome dado.
+
+        Mescla os params e post_data da chamada com os defaults do endpoint,
+        serializa o payload e delega ao pipeline de :meth:`send_prep_data_parse_response`.
+
+        Args:
+            endpoint_name: Nome do endpoint a chamar.
+            params: :class:`URLParams` adicionais para esta chamada.
+            post_data: Campos do corpo POST para esta chamada.
+
+        Returns:
+            ``response.json()`` se ``return_only_json_response=True``,
+            ou :class:`PerformRequestResponse` completo caso contrário.
+        """
+        if params is None:
+            params = URLParams()
+        endpoint = self._endpoints[endpoint_name]
+        final_post_data = endpoint.construct_post_data(post_data)
+        return self.send_prep_data_parse_response(
+            data=final_post_data,
+            url_params=params,
+            http_method=endpoint.method,
+            extra={'endpoint': endpoint},
+        )
+
+    def prep_data(self, data: Any) -> Optional[str]:
+        """Serializa o payload para JSON string antes do envio.
+
+        Retorna ``None`` para requisições sem corpo (GET).
+        Serializa dicts/lists com ``json.dumps`` para POST/PUT/PATCH.
+
+        Args:
+            data: Dict ou lista a serializar, ou ``None``.
+
+        Returns:
+            String JSON, ou ``None`` se ``data`` for ``None``.
+        """
+        if data is None:
+            return None
+        return json.dumps(data)
+
+    def build_url(
+        self,
+        data: Optional[str]=None,
+        url_params: URLParams=None,
+        headers: Dict={},
+        http_method: HTTPMethod=HTTPMethod.GET,
+        extra: Dict={},
+        **kwargs,
+    ) -> str:
+        """Constrói a URL final usando o path do :class:`ApiEndpoint` em ``extra``.
+
+        Combina ``HOST`` com o path+query string do endpoint. Quando ``extra``
+        não contém um endpoint (uso direto de ``send``), delega para
+        :meth:`BaseRequester.build_url` — exigindo ``PATHNAME`` definido.
+
+        Args:
+            url_params: :class:`URLParams` da chamada, mesclados com os defaults
+                do endpoint dentro de :meth:`ApiEndpoint.endpoint_url`.
+            extra: Deve conter ``{"endpoint": ApiEndpoint(...)}`` quando chamado
+                via :meth:`_call_endpoint`.
+
+        Returns:
+            URL completa pronta para requisição.
+
+        Raises:
+            Exception: Se ``HOST`` não estiver definido.
+        """
+        if url_params is None:
+            url_params = URLParams()
+        endpoint: ApiEndpoint = extra.get('endpoint')
+        if endpoint is None:
+            return super().build_url(data, url_params, headers, http_method, extra, **kwargs)
+        if self.HOST is None:
+            raise Exception("Static attribute HOST must be set.")
+        self.URL = self.HOST + endpoint.endpoint_url(url_params)
+        return self.URL
+
+    def parse_response(
+        self,
+        response: Response,
+        url: Optional[str]=None,
+        data: Optional[str]=None,
+        url_params: URLParams=None,
+        headers: Dict={},
+        http_method: HTTPMethod=HTTPMethod.GET,
+        extra: Dict={},
+        **kwargs,
+    ) -> Any:
+        """Parseia a resposta HTTP conforme ``return_only_json_response``.
+
+        Args:
+            response: Objeto :class:`requests.Response`.
+            url: URL final que gerou a resposta.
+            data: Payload serializado enviado na requisição.
+            url_params: Params utilizados.
+            headers: Headers utilizados.
+            http_method: Método HTTP utilizado.
+            extra: Dados extras (contém o endpoint ativo).
+
+        Returns:
+            ``response.json()`` se ``return_only_json_response=True`` (padrão).
+            :class:`PerformRequestResponse` completo se ``False``.
+        """
+        if self.return_only_json_response:
+            return response.json()
+        return PerformRequestResponse(
+            final_url=url or self.URL,
+            post_data=json.loads(data) if data else None,
+            response=response,
+            json_response=response.json(),
+        )
+
+    def parse_thread_response(self, thread_response) -> Any:
+        """Retorna as respostas das threads como lista. Sobrescreva para customizar.
+
+        Por padrão retorna a lista completa de :class:`WorkerResponse` sem filtragem.
+
+        Args:
+            thread_response: Lista de respostas coletadas pelo thread pool.
+
+        Returns:
+            A mesma lista ``thread_response`` recebida.
+        """
+        return thread_response
+
+    def list_api_methods(self) -> List[str]:
+        """Retorna os nomes em snake_case de todos os endpoints registrados.
+
+        Returns:
+            Lista de strings com os nomes dos métodos gerados dinamicamente.
+
+        Example:
+            >>> api.list_api_methods()
+            ['list_posts', 'create_post', 'get_user']
+        """
+        return [name.replace('-', '_') for name in self._endpoints]
