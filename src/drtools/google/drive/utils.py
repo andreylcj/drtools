@@ -4,6 +4,7 @@ from drtools.types import JSONLike, DictKey, DictValue
 import json
 from typing import List, Dict, Optional
 import csv
+import io
 
 
 def mime_type_is_folder(mime_type: str) -> bool:
@@ -95,13 +96,22 @@ def bytes_to_csv_dicts(
         >>> records
         [{'nome': 'Alice', 'idade': '30'}]
     """
-    text = bytes_value.decode(encoding)
-    lines = text.splitlines()
-    # Pula as linhas solicitadas
-    lines = lines[skiprows:]
-    # Usa o cabeçalho fornecido ou pega da primeira linha
-    if header is not None:
-        reader = csv.DictReader(lines, fieldnames=header, delimiter=delimiter)
-    else:
-        reader = csv.DictReader(lines, delimiter=delimiter)
-    return list(reader)
+    csv_string = bytes_value.decode(encoding)
+    tmp_file_in_memory = io.StringIO(csv_string)
+    kwargs = {}
+    if header:
+        kwargs['fieldnames'] = header
+    leitor_dict = csv.DictReader(tmp_file_in_memory, delimiter=delimiter, quotechar='"', **kwargs)
+    records = list(leitor_dict)
+    records = records[skiprows:]
+    return records
+    
+    # lines = csv_string.splitlines()
+    # # Pula as linhas solicitadas
+    # lines = lines[skiprows:]
+    # # Usa o cabeçalho fornecido ou pega da primeira linha
+    # if header is not None:
+    #     reader = csv.DictReader(lines, fieldnames=header, delimiter=delimiter)
+    # else:
+    #     reader = csv.DictReader(lines, delimiter=delimiter)
+    # return list(reader)
