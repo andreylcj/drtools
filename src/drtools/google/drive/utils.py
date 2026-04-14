@@ -97,11 +97,14 @@ def bytes_to_csv_dicts(
         [{'nome': 'Alice', 'idade': '30'}]
     """
     csv_string = bytes_value.decode(encoding)
-    tmp_file_in_memory = io.StringIO(csv_string)
+    file_in_memory = io.StringIO(csv_string)
+    if skiprows > 0:
+        for _ in range(skiprows):
+            next(file_in_memory, None)
     kwargs = {}
     if header:
         kwargs['fieldnames'] = header
-    leitor_dict = csv.DictReader(tmp_file_in_memory, delimiter=delimiter, quotechar='"', **kwargs)
+    leitor_dict = csv.DictReader(file_in_memory, delimiter=delimiter, quotechar='"', **kwargs)
     records = list(leitor_dict)
     records = records[skiprows:]
     return records
