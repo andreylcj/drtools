@@ -104,9 +104,8 @@ def bytes_to_csv_dicts(
     kwargs = {}
     if header:
         kwargs['fieldnames'] = header
-    leitor_dict = csv.DictReader(file_in_memory, delimiter=delimiter, quotechar='"', **kwargs)
-    records = list(leitor_dict)
-    records = records[skiprows:]
+    dict_reader = csv.DictReader(file_in_memory, delimiter=delimiter, quotechar='"', **kwargs)
+    records = list(dict_reader)
     return records
     
     # lines = csv_string.splitlines()
