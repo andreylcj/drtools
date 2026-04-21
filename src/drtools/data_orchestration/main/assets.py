@@ -232,7 +232,12 @@ class DataAsset(Asset):
         return ingested_data
 
     def ingest(self):
-        """Fetch and return raw data. Must be implemented by subclasses."""
+        """Fetch and return data. Default delegates to SOURCE.fetch() if SOURCE is set.
+
+        Override to add custom ingestion logic beyond what the source provides.
+        """
+        if getattr('SOURCE', self, None):
+            return self.SOURCE.fetch(resources=self.get_instantiated_resources_list())
         raise NotImplementedError
 
 
@@ -417,9 +422,13 @@ class LoadAsset(Asset):
         return load_response
 
     def load(self, data):
-        """Send data to the destination. Must be implemented by subclasses.
+        """Send data to the destination. Default delegates to SOURCE.push() if SOURCE is set.
+
+        Override to add custom loading logic before or after writing to the source.
 
         Args:
             data: Validated data to be loaded.
         """
+        if getattr('SOURCE', self, None):
+            return self.SOURCE.push(data, resources=self.get_instantiated_resources_list())
         raise NotImplementedError

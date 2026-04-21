@@ -23,7 +23,6 @@ class BaseGsheetsResource(SingletonResource):
     """
 
     NAME: str = "Gsheets Resource"
-    GOOGLE_CLIENT = None
     SERVICE_ACCOUNT_CREDENTIALS: str = None
     SCOPES: List[str] = [
         'https://www.googleapis.com/auth/spreadsheets',
@@ -57,6 +56,7 @@ class BaseGsheetsResource(SingletonResource):
         conf: Dict=None,
         LOGGER = None
     ):
+        self.GOOGLE_CLIENT = None
         super().__init__(conf, LOGGER)
         if not self.SERVICE_ACCOUNT_CREDENTIALS:
             raise Exception("Static attribute SERVICE_ACCOUNT_CREDENTIALS must be set.")
@@ -134,4 +134,18 @@ class BaseGsheetsResource(SingletonResource):
         worksheet = spreadsheet.worksheet(sheet)
         update_reponse = worksheet.update(data, cell_start, **kwargs)
         return update_reponse
+
+    def clear_sheet(self, gsheet_id: str, sheet: str) -> Dict:
+        """Clear all content from a worksheet.
+
+        Args:
+            gsheet_id: The Google Sheets document ID.
+            sheet: Worksheet tab name.
+
+        Returns:
+            The gspread clear response dict.
+        """
+        spreadsheet = self.spreadsheet(gsheet_id)
+        worksheet = spreadsheet.worksheet(sheet)
+        return worksheet.clear()
     

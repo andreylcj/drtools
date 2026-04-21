@@ -235,11 +235,43 @@ class DatetimeColumn(Column):
 
 
 class Source(ContextComponent):
-    """Base class for all data sources."""
+    """Base class for all data sources.
+
+    Subclasses should implement fetch() and/or push() to define how data is
+    read from or written to this source. Both methods receive the caller's
+    instantiated resources so the source can use credentials or connections
+    without holding a direct reference to them.
+    """
 
     NAME: str = None
     DESCRIPTION: str = None
     ALIAS: str = None
+
+    def fetch(self, resources=None):
+        """Read and return data from this source.
+
+        Args:
+            resources: List of instantiated resource instances provided by the
+                calling Asset. Use these to access external connections or
+                credentials instead of storing them on the Source directly.
+
+        Returns:
+            The fetched data in whatever format this source produces.
+        """
+        raise NotImplementedError
+
+    def push(self, data, resources=None):
+        """Write data to this source.
+
+        Args:
+            data: The data to write.
+            resources: List of instantiated resource instances provided by the
+                calling Asset.
+
+        Returns:
+            The response from the underlying write operation, if any.
+        """
+        raise NotImplementedError
 
 
 class TabularSource(Source):

@@ -290,6 +290,10 @@ class BaseAttributesHandler(AttributesAsListOfUniqueContextComponentClassesNotIn
         """Return the instantiated resource with the given ALIAS."""
         return self.get_instantiated_attr_class('RESOURCES', name)
 
+    def get_instantiated_resources_list(self) -> List:
+        """Return all instantiated resources as a list."""
+        return self.get_instantiated_attr_classes_as_list('RESOURCES')
+
     def get_instantiated_pre_check_assets_list(self) -> List:
         """Return all instantiated pre-check assets as a list."""
         return self.get_instantiated_attr_classes_as_list('PRE_CHECK_ASSETS')
