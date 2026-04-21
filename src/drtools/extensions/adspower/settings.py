@@ -1,0 +1,1 @@
+DEFAULT_ROOT_API_PATH = 'http://local.adspower.com:50325'
