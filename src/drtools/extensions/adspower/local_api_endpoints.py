@@ -1,6 +1,6 @@
 
 
-from perfmkt.resources.request.main import ApiEndpoint, HttpMethod
+from drtools.etl.other_request import ApiEndpoint, HttpMethod
 
 
 STATUS_ENDPOINT = ApiEndpoint(

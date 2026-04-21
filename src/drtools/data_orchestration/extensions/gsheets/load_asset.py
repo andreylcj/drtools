@@ -36,7 +36,7 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not isinstance(self.SOURCE(), GoogleSheetsSource):
+        if not isinstance(self.SOURCE, GoogleSheetsSource):
             raise Exception("Source must be an instance of extensions.gsheets.source.GoogleSheetsSource.")
         if not self.RESOURCES:
             raise Exception("Static attribute RESOURCES must be set.")
@@ -46,8 +46,8 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
             raise Exception("Resource must be instance of extensions.gsheets.resource.BaseGsheetsResource.")
         if not self.UNIQUE_KEYS:
             raise Exception("Static attribute UNIQUE_KEYS must be set.")
-        if not self.SOURCE_DATA_ASSET:
-            raise Exception("Static attribute SOURCE_DATA_ASSET must be set.")
+        # if not self.SOURCE_DATA_ASSET:
+        #     raise Exception("Static attribute SOURCE_DATA_ASSET must be set.")
         # self.SOURCE_DATA_ASSET = self.SOURCE_DATA_ASSET(conf=self.context.conf, LOGGER=self.LOGGER)
         # if not isinstance(self.SOURCE_DATA_ASSET, GoogleSheetsDataAsset):
         #     raise Exception("Source Data Asset must be an instance of extensions.gsheets.data_asset.GoogleSheetsDataAsset.")
@@ -82,7 +82,7 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
         def _construct_id(row):
             _id = ""
             for col in self.UNIQUE_KEYS:
-                _id = row[col] + ";"
+                _id += row[col] + ";"
             _id = _id[:-1]
             return _id
         data['_id'] = data.apply(_construct_id, axis=1)
@@ -95,8 +95,10 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
         if not empty_sheet:
             raw_current_data_df['_id'] = raw_current_data_df.apply(_construct_id, axis=1)
             curr_data_df = raw_current_data_df[self.SOURCE.list_all_column_names()]
-            
-        self.LOGGER.debug(f'Sheet DataFrame Shape: {curr_data_df.shape}')
+        curr_shape = raw_current_data_df.shape
+        if curr_data_df:
+            curr_shape = curr_data_df.shape
+        self.LOGGER.debug(f'Sheet DataFrame Shape: {curr_shape}')
         self.LOGGER.debug('Load sheet as DataFrame... Done!')
         
         # Compute insert data
@@ -118,7 +120,7 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
         else:
             insert_data = data
             
-        insert_data = insert_data[self.COLUMNS]
+        insert_data = insert_data[self.SOURCE.list_all_column_names()]
         
         self.LOGGER.debug(f"New Data shape: {new_data.shape}")
         self.LOGGER.debug(f"Insert Data shape: {insert_data.shape}")
@@ -130,7 +132,7 @@ class GoogleSheetsUpdateOrInsertLoadAsset(TabularAsMatrixLoadAsset):
         self.insert_data = insert_data
         self.LOGGER.debug('Compute insert data... Done!')
 
-        gsheets_resource = self.get_resource('GsheetsResource')
+        gsheets_resource = self.RESOURCES[0].ALIAS
 
         # Insert new data
         # update_res = gsheets_resource.update_sheet(

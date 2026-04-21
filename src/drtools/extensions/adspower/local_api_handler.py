@@ -1,7 +1,7 @@
 
 
 from . import local_api_endpoints
-from perfmkt.resources.request.main import ApiEndpoint, RequestApiHandler
+from drtools.etl.other_request import ApiEndpoint, RequestApiHandler
 from .settings import DEFAULT_ROOT_API_PATH
 from typing import Dict, List
 import time

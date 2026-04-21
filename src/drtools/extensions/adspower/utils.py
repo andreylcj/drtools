@@ -1,7 +1,7 @@
 
 
 # Imports
-from perfmkt.resources.request.main import RequestApiHandler
+from drtools.etl.other_request import RequestApiHandler
 from typing import Dict, List
 from fake_useragent import UserAgent
 

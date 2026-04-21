@@ -20,9 +20,9 @@ class TabularDataAsset(DataAsset):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.SOURCE:
-            raise Exception("Statice attribute SOURCE must be set.")
+            raise Exception("Static attribute SOURCE must be set.")
         if not isinstance(self.SOURCE, TabularSource):
-            raise Exception("Statice attribute SOURCE must be a TabularSource instance.")
+            raise Exception("Static attribute SOURCE must be a TabularSource instance.")
 
 
 class TabularAsDataframeDataAsset(TabularDataAsset):
