@@ -188,6 +188,7 @@ class Logger:
         reset_logger: bool=False,
         max_bytes: int=2 * 1024 * 1024,
         backup_count: int=10,
+        encoding: str='utf-8',
         **kwargs
     ) -> None:
         self.level = level
@@ -199,6 +200,7 @@ class Logger:
         self.reset_logger = reset_logger
         self.max_bytes = max_bytes
         self.backup_count = backup_count
+        self.encoding = encoding
         self.started_at = datetime.now()
         self.updated_at = None
         self.updated_at_by_level = {}
@@ -269,7 +271,7 @@ class Logger:
                     mode='a', 
                     maxBytes=self.max_bytes,
                     backupCount=self.backup_count, 
-                    encoding=None, 
+                    encoding=self.encoding, 
                     delay=0
                 )
             else:
